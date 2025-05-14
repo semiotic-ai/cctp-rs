@@ -9,7 +9,7 @@ homepage = "https://crates.io/crates/cctp-rs"
 keywords = ["defi", "ethereum", "web3", "blockchain", "sdk"]
 license = "Apache-2.0"
 readme = "README.md"
-repository = "https://github.com/semiotic-ai/cctp-rs"
+repository = "https://github.com/suchapalaver/cctp-rs"
 
 [dependencies]
 alloy-chains = "0.2.0"

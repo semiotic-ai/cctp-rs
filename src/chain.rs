@@ -12,7 +12,8 @@ use crate::{
     ETHEREUM_SEPOLIA_MESSAGE_TRANSMITTER_ADDRESS, ETHEREUM_SEPOLIA_TOKEN_MESSENGER_ADDRESS,
     ETHEREUM_TOKEN_MESSENGER_ADDRESS, OPTIMISM_DOMAIN_ID, OPTIMISM_MESSAGE_TRANSMITTER_ADDRESS,
     OPTIMISM_TOKEN_MESSENGER_ADDRESS, POLYGON_CCTP_V1_MESSAGE_TRANSMITTER,
-    POLYGON_CCTP_V1_TOKEN_MESSENGER, POLYGON_DOMAIN_ID, UNICHAIN_DOMAIN_ID,
+    POLYGON_CCTP_V1_TOKEN_MESSENGER, POLYGON_DOMAIN_ID, UNICHAIN_CCTP_V1_MESSAGE_TRANSMITTER,
+    UNICHAIN_CCTP_V1_TOKEN_MESSENGER, UNICHAIN_DOMAIN_ID,
 };
 
 /// Trait for chains that support CCTP bridging
@@ -70,6 +71,7 @@ impl CctpV1 for NamedChain {
             Mainnet => ETHEREUM_TOKEN_MESSENGER_ADDRESS,
             Optimism => OPTIMISM_TOKEN_MESSENGER_ADDRESS,
             Polygon => POLYGON_CCTP_V1_TOKEN_MESSENGER,
+            Unichain => UNICHAIN_CCTP_V1_TOKEN_MESSENGER,
             _ => panic!("Can't get token messenger address for unsupported chain: {self}"),
         }
         .parse()
@@ -90,6 +92,7 @@ impl CctpV1 for NamedChain {
             ArbitrumSepolia => ARBITRUM_SEPOLIA_MESSAGE_TRANSMITTER_ADDRESS,
             BaseSepolia => BASE_SEPOLIA_MESSAGE_TRANSMITTER_ADDRESS,
             Sepolia => ETHEREUM_SEPOLIA_MESSAGE_TRANSMITTER_ADDRESS,
+            Unichain => UNICHAIN_CCTP_V1_MESSAGE_TRANSMITTER,
             _ => panic!("Can't get message transmitter address for unsupported chain: {self}"),
         }
         .parse()

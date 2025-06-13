@@ -31,6 +31,9 @@ pub const OPTIMISM_MESSAGE_TRANSMITTER_ADDRESS: &str = "0x4D41f22c5a0e5c74090899
 /// <https://polygonscan.com/address/0x9daF8c91AEFAE50b9c0E69629D3F6Ca40cA3B3FE>
 pub const POLYGON_CCTP_V1_MESSAGE_TRANSMITTER: &str = "0xF3be9355363857F3e001be68856A2f96b4C39Ba9";
 
+/// <https://uniscan.xyz/address/0x353bE9E2E38AB1D19104534e4edC21c643Df86f4>
+pub const UNICHAIN_CCTP_V1_MESSAGE_TRANSMITTER: &str = "0x353bE9E2E38AB1D19104534e4edC21c643Df86f4";
+
 sol!(
     #[allow(clippy::too_many_arguments)]
     #[allow(missing_docs)]

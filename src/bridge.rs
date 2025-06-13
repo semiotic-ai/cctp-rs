@@ -31,6 +31,7 @@ pub const CHAIN_CONFIRMATION_CONFIG: &[(NamedChain, u64, Duration)] = &[
     (NamedChain::Avalanche, 3, Duration::from_secs(120)), // 2 mins for Avalanche
     (NamedChain::BinanceSmartChain, 2, Duration::from_secs(120)), // 2 mins for BNB Chain
     (NamedChain::Base, 1, Duration::from_secs(120)),    // 2 mins for Base
+    (NamedChain::Unichain, 1, Duration::from_secs(120)), // 2 mins for Unichain
 ];
 
 /// Gets the chain-specific confirmation configuration

@@ -28,6 +28,8 @@ pub const ETHEREUM_SEPOLIA_TOKEN_MESSENGER_ADDRESS: &str =
 pub const OPTIMISM_TOKEN_MESSENGER_ADDRESS: &str = "0x2B4069517957735bE00ceE0fadAE88a26365528f";
 /// <https://developers.circle.com/stablecoins/evm-smart-contracts>
 pub const POLYGON_CCTP_V1_TOKEN_MESSENGER: &str = "0x9daF8c91AEFAE50b9c0E69629D3F6Ca40cA3B3FE";
+/// <https://uniscan.xyz/address/0x4e744b28E787c3aD0e810eD65A24461D4ac5a762>
+pub const UNICHAIN_CCTP_V1_TOKEN_MESSENGER: &str = "0x4e744b28E787c3aD0e810eD65A24461D4ac5a762";
 
 /// The CCTP v1 Token Messenger contract.
 pub struct TokenMessengerContract<P: Provider<Ethereum>> {

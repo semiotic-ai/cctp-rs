@@ -1,0 +1,104 @@
+name: Security
+
+on:
+  schedule:
+    # Run security audit every day at 6 AM UTC
+    - cron: '0 6 * * *'
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  security_audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+    
+    - name: Install cargo-audit
+      run: cargo install cargo-audit
+    
+    - name: Run cargo-audit
+      run: cargo audit
+    
+    - name: Run cargo-audit with JSON output
+      run: cargo audit --json > audit-results.json
+      continue-on-error: true
+    
+    - name: Upload audit results
+      uses: actions/upload-artifact@v4
+      with:
+        name: security-audit-results
+        path: audit-results.json
+
+  dependency_review:
+    name: Dependency Review
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    
+    - name: Dependency Review
+      uses: actions/dependency-review-action@v4
+      with:
+        fail-on-severity: moderate
+
+  supply_chain_security:
+    name: Supply Chain Security
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+    
+    - name: Install cargo-deny
+      run: cargo install cargo-deny
+    
+    - name: Check licenses and security
+      run: |
+        cat > deny.toml << 'EOF'
+        [graph]
+        targets = []
+        
+        [licenses]
+        version = 2
+        allow = [
+            "MIT", 
+            "Apache-2.0", 
+            "Apache-2.0 WITH LLVM-exception", 
+            "BSD-2-Clause", 
+            "BSD-3-Clause", 
+            "Unicode-3.0",
+            "CC0-1.0",
+            "Zlib"
+        ]
+        
+        [bans]
+        multiple-versions = "allow"
+        wildcards = "allow"
+        
+        [advisories]
+        version = 2
+        db-path = "~/.cargo/advisory-db"
+        db-urls = ["https://github.com/rustsec/advisory-db"]
+        ignore = [
+            "RUSTSEC-2024-0436"  # paste crate unmaintained
+        ]
+        
+        [sources]
+        unknown-registry = "warn"
+        unknown-git = "warn"
+        allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+        allow-git = []
+        EOF
+        
+        cargo deny check

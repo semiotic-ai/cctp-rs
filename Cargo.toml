@@ -12,27 +12,27 @@ readme = "README.md"
 repository = "https://github.com/semiotic-ai/cctp-rs"
 
 [dependencies]
-alloy-chains = "0.2.0"
-alloy-contract = { version = "1.0.3", default-features = false }
-alloy-dyn-abi = { version = "1.1.0", default-features = false }
-alloy-json-rpc = { version = "1.0.3", default-features = false }
-alloy-network = { version = "1.0.3", default-features = false }
-alloy-primitives = { version = "1.1.0", default-features = false, features = [
+alloy-chains = "0.2.5"
+alloy-contract = { version = "1.0.20", default-features = false }
+alloy-dyn-abi = { version = "1.2.1", default-features = false }
+alloy-json-rpc = { version = "1.0.20", default-features = false }
+alloy-network = { version = "1.0.20", default-features = false }
+alloy-primitives = { version = "1.2.1", default-features = false, features = [
     "std",
     "rlp",
 ] }
-alloy-provider = { version = "1.0.3", default-features = false, features = [
+alloy-provider = { version = "1.0.20", default-features = false, features = [
     "anvil-node",
     "reqwest",
 ] }
-alloy-rpc-types = "1.0.3"
-alloy-sol-types = { version = "1.1.0", features = ["json"] }
-alloy-transport = { version = "1.0.3", default-features = false }
-bon = "3.4.0"
-reqwest = { version = "0.12.12", features = ["json"] }
+alloy-rpc-types = "1.0.20"
+alloy-sol-types = { version = "1.2.1", features = ["json"] }
+alloy-transport = { version = "1.0.20", default-features = false }
+bon = "3.6.4"
+reqwest = { version = "0.12.22", features = ["json"] }
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.140"
-thiserror = "2.0"
+thiserror = "2.0.12"
 tracing = "0.1.41"
 
 [dev-dependencies]

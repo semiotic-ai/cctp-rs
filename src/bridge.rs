@@ -43,7 +43,28 @@ pub fn get_chain_confirmation_config(chain: &NamedChain) -> (u64, Duration) {
         .unwrap_or((1, DEFAULT_CONFIRMATION_TIMEOUT))
 }
 
-/// CCTP v1 bridge
+/// CCTP v1 bridge implementation
+///
+/// This struct provides the core functionality for bridging USDC across chains
+/// using Circle's Cross-Chain Transfer Protocol (CCTP).
+///
+/// # Example
+///
+/// ```rust,no_run
+/// # use cctp_rs::{Cctp, CctpError};
+/// # use alloy_chains::NamedChain;
+/// # use alloy_provider::ProviderBuilder;
+/// # async fn example() -> Result<(), CctpError> {
+/// let bridge = Cctp::builder()
+///     .source_chain(NamedChain::Mainnet)
+///     .destination_chain(NamedChain::Arbitrum)
+///     .source_provider(ProviderBuilder::new().on_builtin("http://localhost:8545").await?)
+///     .destination_provider(ProviderBuilder::new().on_builtin("http://localhost:8546").await?)
+///     .recipient("0x...".parse()?)
+///     .build();
+/// # Ok(())
+/// # }
+/// ```
 #[derive(Builder, Clone, Debug)]
 pub struct Cctp<P: Provider<Ethereum> + Clone> {
     source_provider: P,
@@ -101,6 +122,23 @@ impl<P: Provider<Ethereum> + Clone> Cctp<P> {
     /// Returns the recipient address
     pub fn recipient(&self) -> &Address {
         &self.recipient
+    }
+
+    /// Constructs the Iris API URL for a given message hash
+    ///
+    /// # Arguments
+    ///
+    /// * `message_hash` - The message hash to query
+    ///
+    /// # Returns
+    ///
+    /// The full URL to query the attestation status
+    pub fn iris_api_url(&self, message_hash: &FixedBytes<32>) -> String {
+        format!(
+            "{}/attestations/{}",
+            self.api_url(),
+            hex::encode(message_hash)
+        )
     }
 
     /// Gets the `MessageSent` event data from a CCTP bridge transaction

@@ -142,3 +142,175 @@ impl CctpV1 for NamedChain {
         )
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use alloy_chains::NamedChain;
+    use rstest::rstest;
+
+    #[rstest]
+    #[case(NamedChain::Mainnet, true)]
+    #[case(NamedChain::Arbitrum, true)]
+    #[case(NamedChain::Base, true)]
+    #[case(NamedChain::Optimism, true)]
+    #[case(NamedChain::Unichain, true)]
+    #[case(NamedChain::Avalanche, true)]
+    #[case(NamedChain::Polygon, true)]
+    #[case(NamedChain::Sepolia, true)]
+    #[case(NamedChain::ArbitrumSepolia, true)]
+    #[case(NamedChain::AvalancheFuji, true)]
+    #[case(NamedChain::BaseSepolia, true)]
+    #[case(NamedChain::OptimismSepolia, true)]
+    #[case(NamedChain::PolygonAmoy, true)]
+    #[case(NamedChain::BinanceSmartChain, false)]
+    #[case(NamedChain::Fantom, false)]
+    fn test_is_supported(#[case] chain: NamedChain, #[case] expected: bool) {
+        assert_eq!(chain.is_supported(), expected);
+    }
+
+    #[rstest]
+    #[case(NamedChain::Mainnet, 19 * 60)]
+    #[case(NamedChain::Arbitrum, 19 * 60)]
+    #[case(NamedChain::Base, 19 * 60)]
+    #[case(NamedChain::Optimism, 19 * 60)]
+    #[case(NamedChain::Unichain, 19 * 60)]
+    #[case(NamedChain::Avalanche, 20)]
+    #[case(NamedChain::Polygon, 8 * 60)]
+    #[case(NamedChain::Sepolia, 60)]
+    #[case(NamedChain::ArbitrumSepolia, 20)]
+    #[case(NamedChain::AvalancheFuji, 20)]
+    #[case(NamedChain::BaseSepolia, 20)]
+    #[case(NamedChain::OptimismSepolia, 20)]
+    #[case(NamedChain::PolygonAmoy, 20)]
+    fn test_confirmation_average_time_seconds_supported_chains(
+        #[case] chain: NamedChain,
+        #[case] expected: u64,
+    ) {
+        assert_eq!(chain.confirmation_average_time_seconds().unwrap(), expected);
+    }
+
+    #[test]
+    fn test_confirmation_average_time_seconds_unsupported_chain() {
+        let result = NamedChain::BinanceSmartChain.confirmation_average_time_seconds();
+        assert!(result.is_err());
+        assert!(matches!(
+            result.unwrap_err(),
+            CctpError::ChainNotSupported { .. }
+        ));
+    }
+
+    #[rstest]
+    #[case(NamedChain::Arbitrum, ARBITRUM_DOMAIN_ID)]
+    #[case(NamedChain::ArbitrumSepolia, ARBITRUM_DOMAIN_ID)]
+    #[case(NamedChain::Avalanche, AVALANCHE_DOMAIN_ID)]
+    #[case(NamedChain::Base, BASE_DOMAIN_ID)]
+    #[case(NamedChain::BaseSepolia, BASE_DOMAIN_ID)]
+    #[case(NamedChain::Mainnet, ETHEREUM_DOMAIN_ID)]
+    #[case(NamedChain::Sepolia, ETHEREUM_DOMAIN_ID)]
+    #[case(NamedChain::Optimism, OPTIMISM_DOMAIN_ID)]
+    #[case(NamedChain::Polygon, POLYGON_DOMAIN_ID)]
+    #[case(NamedChain::Unichain, UNICHAIN_DOMAIN_ID)]
+    fn test_cctp_domain_id_supported_chains(#[case] chain: NamedChain, #[case] expected: u32) {
+        assert_eq!(chain.cctp_domain_id().unwrap(), expected);
+    }
+
+    #[test]
+    fn test_cctp_domain_id_unsupported_chain() {
+        let result = NamedChain::BinanceSmartChain.cctp_domain_id();
+        assert!(result.is_err());
+        assert!(matches!(
+            result.unwrap_err(),
+            CctpError::ChainNotSupported { .. }
+        ));
+    }
+
+    #[rstest]
+    #[case(NamedChain::Arbitrum, ARBITRUM_TOKEN_MESSENGER_ADDRESS)]
+    #[case(NamedChain::ArbitrumSepolia, ARBITRUM_SEPOLIA_TOKEN_MESSENGER_ADDRESS)]
+    #[case(NamedChain::Avalanche, AVALANCHE_TOKEN_MESSENGER_ADDRESS)]
+    #[case(NamedChain::Base, BASE_TOKEN_MESSENGER_ADDRESS)]
+    #[case(NamedChain::BaseSepolia, BASE_SEPOLIA_TOKEN_MESSENGER_ADDRESS)]
+    #[case(NamedChain::Sepolia, ETHEREUM_SEPOLIA_TOKEN_MESSENGER_ADDRESS)]
+    #[case(NamedChain::Mainnet, ETHEREUM_TOKEN_MESSENGER_ADDRESS)]
+    #[case(NamedChain::Optimism, OPTIMISM_TOKEN_MESSENGER_ADDRESS)]
+    #[case(NamedChain::Polygon, POLYGON_CCTP_V1_TOKEN_MESSENGER)]
+    #[case(NamedChain::Unichain, UNICHAIN_CCTP_V1_TOKEN_MESSENGER)]
+    fn test_token_messenger_address_supported_chains(
+        #[case] chain: NamedChain,
+        #[case] expected_str: &str,
+    ) {
+        let result = chain.token_messenger_address().unwrap();
+        let expected: Address = expected_str.parse().unwrap();
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_token_messenger_address_unsupported_chain() {
+        let result = NamedChain::BinanceSmartChain.token_messenger_address();
+        assert!(result.is_err());
+        assert!(matches!(
+            result.unwrap_err(),
+            CctpError::ChainNotSupported { .. }
+        ));
+    }
+
+    #[rstest]
+    #[case(NamedChain::Arbitrum, ARBITRUM_MESSAGE_TRANSMITTER_ADDRESS)]
+    #[case(NamedChain::Avalanche, AVALANCHE_MESSAGE_TRANSMITTER_ADDRESS)]
+    #[case(NamedChain::Base, BASE_MESSAGE_TRANSMITTER_ADDRESS)]
+    #[case(NamedChain::Mainnet, ETHEREUM_MESSAGE_TRANSMITTER_ADDRESS)]
+    #[case(NamedChain::Optimism, OPTIMISM_MESSAGE_TRANSMITTER_ADDRESS)]
+    #[case(NamedChain::Polygon, POLYGON_CCTP_V1_MESSAGE_TRANSMITTER)]
+    #[case(
+        NamedChain::ArbitrumSepolia,
+        ARBITRUM_SEPOLIA_MESSAGE_TRANSMITTER_ADDRESS
+    )]
+    #[case(NamedChain::BaseSepolia, BASE_SEPOLIA_MESSAGE_TRANSMITTER_ADDRESS)]
+    #[case(NamedChain::Sepolia, ETHEREUM_SEPOLIA_MESSAGE_TRANSMITTER_ADDRESS)]
+    #[case(NamedChain::Unichain, UNICHAIN_CCTP_V1_MESSAGE_TRANSMITTER)]
+    fn test_message_transmitter_address_supported_chains(
+        #[case] chain: NamedChain,
+        #[case] expected_str: &str,
+    ) {
+        let result = chain.message_transmitter_address().unwrap();
+        let expected: Address = expected_str.parse().unwrap();
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_message_transmitter_address_unsupported_chain() {
+        let result = NamedChain::BinanceSmartChain.message_transmitter_address();
+        assert!(result.is_err());
+        assert!(matches!(
+            result.unwrap_err(),
+            CctpError::ChainNotSupported { .. }
+        ));
+    }
+
+    #[test]
+    fn test_address_parsing_validation() {
+        // All addresses should be valid Ethereum addresses
+        for chain in [
+            NamedChain::Mainnet,
+            NamedChain::Arbitrum,
+            NamedChain::Base,
+            NamedChain::Optimism,
+            NamedChain::Unichain,
+            NamedChain::Avalanche,
+            NamedChain::Polygon,
+            NamedChain::Sepolia,
+            NamedChain::ArbitrumSepolia,
+            NamedChain::BaseSepolia,
+        ] {
+            assert!(
+                chain.token_messenger_address().is_ok(),
+                "Token messenger address should be valid for {chain:?}"
+            );
+            assert!(
+                chain.message_transmitter_address().is_ok(),
+                "Message transmitter address should be valid for {chain:?}"
+            );
+        }
+    }
+}

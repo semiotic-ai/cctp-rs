@@ -312,3 +312,53 @@ impl BridgeParams {
         self.amount
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use alloy_chains::NamedChain;
+    use alloy_primitives::{Address, U256};
+    use rstest::rstest;
+
+    #[test]
+    fn test_bridge_params_builder() {
+        let params = BridgeParams::builder()
+            .from_address(Address::ZERO)
+            .recipient(Address::ZERO)
+            .token_address(Address::ZERO)
+            .amount(U256::from(1000))
+            .build();
+
+        assert_eq!(params.from_address(), Address::ZERO);
+        assert_eq!(params.recipient(), Address::ZERO);
+        assert_eq!(params.token_address(), Address::ZERO);
+        assert_eq!(params.amount(), U256::from(1000));
+    }
+
+    #[rstest]
+    #[case(NamedChain::Mainnet, NamedChain::Arbitrum)]
+    #[case(NamedChain::Arbitrum, NamedChain::Base)]
+    #[case(NamedChain::Base, NamedChain::Polygon)]
+    #[case(NamedChain::Sepolia, NamedChain::ArbitrumSepolia)]
+    fn test_cross_chain_compatibility(#[case] source: NamedChain, #[case] destination: NamedChain) {
+        // Test that chains are supported
+        assert!(source.is_supported());
+        assert!(destination.is_supported());
+
+        // Test that we can get domain IDs for supported chains
+        assert!(source.cctp_domain_id().is_ok());
+        assert!(destination.cctp_domain_id().is_ok());
+        assert!(source.token_messenger_address().is_ok());
+        assert!(destination.message_transmitter_address().is_ok());
+    }
+
+    #[test]
+    fn test_unsupported_chain_error() {
+        let result = NamedChain::BinanceSmartChain.token_messenger_address();
+        assert!(result.is_err());
+        assert!(matches!(
+            result.unwrap_err(),
+            CctpError::ChainNotSupported { .. }
+        ));
+    }
+}

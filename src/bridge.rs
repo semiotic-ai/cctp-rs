@@ -1,9 +1,9 @@
+use crate::error::{CctpError, Result};
 use alloy_chains::NamedChain;
 use alloy_network::Ethereum;
 use alloy_primitives::{hex, Address, FixedBytes, TxHash, U256};
 use alloy_provider::Provider;
 use alloy_sol_types::SolEvent;
-use anyhow::{anyhow, bail};
 use bon::Builder;
 use reqwest::{Client, Response};
 use std::{thread::sleep, time::Duration};
@@ -74,7 +74,7 @@ impl<P: Provider<Ethereum> + Clone> Cctp<P> {
     }
 
     /// Returns the destination domain id
-    pub fn destination_domain_id(&self) -> u32 {
+    pub fn destination_domain_id(&self) -> Result<u32> {
         self.destination_chain.cctp_domain_id()
     }
 
@@ -89,12 +89,12 @@ impl<P: Provider<Ethereum> + Clone> Cctp<P> {
     }
 
     /// Returns the CCTP token messenger contract, the address of the contract that handles the deposit and burn of USDC
-    pub fn token_messenger_contract(&self) -> Address {
+    pub fn token_messenger_contract(&self) -> Result<Address> {
         self.source_chain.token_messenger_address()
     }
 
     /// Returns the CCTP message transmitter contract, the address of the contract that handles the receipt of messages
-    pub fn message_transmitter_contract(&self) -> Address {
+    pub fn message_transmitter_contract(&self) -> Result<Address> {
         self.destination_chain.message_transmitter_address()
     }
 
@@ -116,7 +116,7 @@ impl<P: Provider<Ethereum> + Clone> Cctp<P> {
     pub async fn get_message_sent_event(
         &self,
         tx_hash: TxHash,
-    ) -> anyhow::Result<(Vec<u8>, FixedBytes<32>)> {
+    ) -> Result<(Vec<u8>, FixedBytes<32>)> {
         let tx_receipt = self
             .source_provider
             .get_transaction_receipt(tx_hash)
@@ -135,7 +135,9 @@ impl<P: Provider<Ethereum> + Clone> Cctp<P> {
                         .first()
                         .is_some_and(|topic| topic.as_slice() == message_sent_topic)
                 })
-                .ok_or(anyhow!("MessageSentEventNotFound"))?;
+                .ok_or_else(|| CctpError::TransactionFailed {
+                    reason: "MessageSent event not found".to_string(),
+                })?;
 
             // Decode the log data using the generated event bindings
             let decoded = MessageSent::abi_decode_data(&message_sent_log.data().data)?;
@@ -145,7 +147,9 @@ impl<P: Provider<Ethereum> + Clone> Cctp<P> {
 
             Ok((message_sent_event, message_hash))
         } else {
-            bail!("TransactionNotFound");
+            return Err(CctpError::TransactionFailed {
+                reason: "Transaction not found".to_string(),
+            });
         }
     }
 
@@ -165,7 +169,7 @@ impl<P: Provider<Ethereum> + Clone> Cctp<P> {
         message_hash: FixedBytes<32>,
         max_attempts: Option<u32>,
         poll_interval: Option<u64>,
-    ) -> anyhow::Result<AttestationBytes> {
+    ) -> Result<AttestationBytes> {
         let client = Client::new();
         let max_attempts = max_attempts.unwrap_or(30);
         let poll_interval = poll_interval.unwrap_or(60);
@@ -226,9 +230,12 @@ impl<P: Provider<Ethereum> + Clone> Cctp<P> {
 
             match attestation.status {
                 AttestationStatus::Complete => {
-                    let attestation_bytes = attestation
-                        .attestation
-                        .ok_or(anyhow!("AttestationMissing"))?;
+                    let attestation_bytes =
+                        attestation
+                            .attestation
+                            .ok_or_else(|| CctpError::AttestationFailed {
+                                reason: "Attestation missing".to_string(),
+                            })?;
 
                     // Remove '0x' prefix if present and decode hex
                     let attestation_bytes =
@@ -242,7 +249,9 @@ impl<P: Provider<Ethereum> + Clone> Cctp<P> {
                     return Ok(attestation_bytes);
                 }
                 AttestationStatus::Failed => {
-                    bail!("AttestationFailed");
+                    return Err(CctpError::AttestationFailed {
+                        reason: "Attestation failed".to_string(),
+                    });
                 }
                 AttestationStatus::Pending | AttestationStatus::PendingConfirmations => {
                     info!(
@@ -256,7 +265,7 @@ impl<P: Provider<Ethereum> + Clone> Cctp<P> {
             }
         }
 
-        bail!("AttestationTimeout")
+        Err(CctpError::AttestationTimeout)
     }
 
     /// See <https://developers.circle.com/stablecoins/cctp-apis>
@@ -272,12 +281,8 @@ impl<P: Provider<Ethereum> + Clone> Cctp<P> {
     /// * `client`: The HTTP client to use
     /// * `url`: The URL to get the attestation from
     ///
-    pub async fn get_attestation(
-        &self,
-        client: &Client,
-        url: &str,
-    ) -> Result<Response, reqwest::Error> {
-        client.get(url).send().await
+    pub async fn get_attestation(&self, client: &Client, url: &str) -> Result<Response> {
+        client.get(url).send().await.map_err(CctpError::Network)
     }
 }
 

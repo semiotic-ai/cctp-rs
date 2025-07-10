@@ -1,6 +1,7 @@
 use alloy_chains::NamedChain;
 use alloy_primitives::Address;
-use anyhow::bail;
+
+use crate::error::{CctpError, Result};
 
 use crate::{
     ARBITRUM_DOMAIN_ID, ARBITRUM_MESSAGE_TRANSMITTER_ADDRESS,
@@ -19,17 +20,20 @@ use crate::{
 /// Trait for chains that support CCTP bridging
 pub trait CctpV1 {
     /// The average time to confirmation of the chain, according to the CCTP docs: <https://developers.circle.com/stablecoins/required-block-confirmations>
-    fn confirmation_average_time_seconds(&self) -> anyhow::Result<u64>;
+    fn confirmation_average_time_seconds(&self) -> Result<u64>;
     /// The domain ID of the chain - used to identify the chain when bridging: <https://developers.circle.com/stablecoins/evm-smart-contracts>
-    fn cctp_domain_id(&self) -> u32;
+    fn cctp_domain_id(&self) -> Result<u32>;
     /// The address of the `TokenMessenger` contract on the chain
-    fn token_messenger_address(&self) -> Address;
+    fn token_messenger_address(&self) -> Result<Address>;
     /// The address of the `MessageTransmitter` contract on the chain
-    fn message_transmitter_address(&self) -> Address;
+    fn message_transmitter_address(&self) -> Result<Address>;
+
+    /// Check if the chain is supported for CCTP
+    fn is_supported(&self) -> bool;
 }
 
 impl CctpV1 for NamedChain {
-    fn confirmation_average_time_seconds(&self) -> anyhow::Result<u64> {
+    fn confirmation_average_time_seconds(&self) -> Result<u64> {
         use NamedChain::*;
 
         match self {
@@ -39,29 +43,33 @@ impl CctpV1 for NamedChain {
             // Testnets
             Sepolia => Ok(60),
             ArbitrumSepolia | AvalancheFuji | BaseSepolia | OptimismSepolia | PolygonAmoy => Ok(20),
-            _ => bail!("Unsupported chain for CCTP v1: {self}"),
+            _ => Err(CctpError::ChainNotSupported {
+                chain: self.to_string(),
+            }),
         }
     }
 
-    fn cctp_domain_id(&self) -> u32 {
+    fn cctp_domain_id(&self) -> Result<u32> {
         use NamedChain::*;
 
         match self {
-            Arbitrum | ArbitrumSepolia => ARBITRUM_DOMAIN_ID,
-            Avalanche => AVALANCHE_DOMAIN_ID,
-            Base | BaseSepolia => BASE_DOMAIN_ID,
-            Mainnet | Sepolia => ETHEREUM_DOMAIN_ID,
-            Optimism => OPTIMISM_DOMAIN_ID,
-            Polygon => POLYGON_DOMAIN_ID,
-            Unichain => UNICHAIN_DOMAIN_ID,
-            _ => panic!("Can't get domain ID for unsupported chain: {self}"),
+            Arbitrum | ArbitrumSepolia => Ok(ARBITRUM_DOMAIN_ID),
+            Avalanche => Ok(AVALANCHE_DOMAIN_ID),
+            Base | BaseSepolia => Ok(BASE_DOMAIN_ID),
+            Mainnet | Sepolia => Ok(ETHEREUM_DOMAIN_ID),
+            Optimism => Ok(OPTIMISM_DOMAIN_ID),
+            Polygon => Ok(POLYGON_DOMAIN_ID),
+            Unichain => Ok(UNICHAIN_DOMAIN_ID),
+            _ => Err(CctpError::ChainNotSupported {
+                chain: self.to_string(),
+            }),
         }
     }
 
-    fn token_messenger_address(&self) -> Address {
+    fn token_messenger_address(&self) -> Result<Address> {
         use NamedChain::*;
 
-        match self {
+        let address_str = match self {
             Arbitrum => ARBITRUM_TOKEN_MESSENGER_ADDRESS,
             ArbitrumSepolia => ARBITRUM_SEPOLIA_TOKEN_MESSENGER_ADDRESS,
             Avalanche => AVALANCHE_TOKEN_MESSENGER_ADDRESS,
@@ -72,16 +80,23 @@ impl CctpV1 for NamedChain {
             Optimism => OPTIMISM_TOKEN_MESSENGER_ADDRESS,
             Polygon => POLYGON_CCTP_V1_TOKEN_MESSENGER,
             Unichain => UNICHAIN_CCTP_V1_TOKEN_MESSENGER,
-            _ => panic!("Can't get token messenger address for unsupported chain: {self}"),
-        }
-        .parse()
-        .unwrap()
+            _ => {
+                return Err(CctpError::ChainNotSupported {
+                    chain: self.to_string(),
+                })
+            }
+        };
+
+        address_str.parse().map_err(|e| CctpError::InvalidAddress {
+            address: address_str.to_string(),
+            source: e,
+        })
     }
 
-    fn message_transmitter_address(&self) -> Address {
+    fn message_transmitter_address(&self) -> Result<Address> {
         use NamedChain::*;
 
-        match self {
+        let address_str = match self {
             Arbitrum => ARBITRUM_MESSAGE_TRANSMITTER_ADDRESS,
             Avalanche => AVALANCHE_MESSAGE_TRANSMITTER_ADDRESS,
             Base => BASE_MESSAGE_TRANSMITTER_ADDRESS,
@@ -93,9 +108,37 @@ impl CctpV1 for NamedChain {
             BaseSepolia => BASE_SEPOLIA_MESSAGE_TRANSMITTER_ADDRESS,
             Sepolia => ETHEREUM_SEPOLIA_MESSAGE_TRANSMITTER_ADDRESS,
             Unichain => UNICHAIN_CCTP_V1_MESSAGE_TRANSMITTER,
-            _ => panic!("Can't get message transmitter address for unsupported chain: {self}"),
-        }
-        .parse()
-        .unwrap()
+            _ => {
+                return Err(CctpError::ChainNotSupported {
+                    chain: self.to_string(),
+                })
+            }
+        };
+
+        address_str.parse().map_err(|e| CctpError::InvalidAddress {
+            address: address_str.to_string(),
+            source: e,
+        })
+    }
+
+    fn is_supported(&self) -> bool {
+        use NamedChain::*;
+
+        matches!(
+            self,
+            Mainnet
+                | Arbitrum
+                | Base
+                | Optimism
+                | Unichain
+                | Avalanche
+                | Polygon
+                | Sepolia
+                | ArbitrumSepolia
+                | AvalancheFuji
+                | BaseSepolia
+                | OptimismSepolia
+                | PolygonAmoy
+        )
     }
 }

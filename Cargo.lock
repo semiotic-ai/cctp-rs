@@ -408,9 +408,9 @@ dependencies = [
 
 [[package]]
 name = "alloy-rpc-types"
-version = "1.0.20"
+version = "1.0.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "99074f79ad4b188b1049807f8f96637abc3cc019fde53791906edc26bc092a57"
+checksum = "a27d378f4fad3496365efb5e5ad4ec704a66e280644b6c425a89cd5a2e852f33"
 dependencies = [
  "alloy-primitives",
  "alloy-rpc-types-engine",

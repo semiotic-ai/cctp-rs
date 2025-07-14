@@ -15,7 +15,7 @@ repository = "https://github.com/semiotic-ai/cctp-rs"
 alloy-chains = "0.2.5"
 alloy-contract = { version = "1.0.20", default-features = false }
 alloy-dyn-abi = { version = "1.2.1", default-features = false }
-alloy-json-rpc = { version = "1.0.20", default-features = false }
+alloy-json-rpc = { version = "1.0.21", default-features = false }
 alloy-network = { version = "1.0.20", default-features = false }
 alloy-primitives = { version = "1.2.1", default-features = false, features = [
     "std",

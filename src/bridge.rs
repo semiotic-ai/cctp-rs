@@ -7,7 +7,7 @@ use alloy_sol_types::SolEvent;
 use bon::Builder;
 use reqwest::{Client, Response};
 use std::{thread::sleep, time::Duration};
-use tracing::{debug, info, instrument, Level};
+use tracing::{debug, error, info, instrument, trace, Level};
 
 use crate::{AttestationBytes, AttestationResponse, AttestationStatus, CctpV1};
 
@@ -219,27 +219,27 @@ impl<P: Provider<Ethereum> + Clone> Cctp<P> {
         info!(url = ?url, "Attestation URL");
 
         for attempt in 1..=max_attempts {
-            info!(
+            trace!(
                 attempt = ?attempt,
                 max_attempts = ?max_attempts,
                 "Getting attestation ..."
             );
             let response = self.get_attestation(&client, &url).await?;
-            debug!(response = ?response);
+            trace!(response = ?response);
 
-            info!(attestation_status = ?response.status());
+            trace!(attestation_status = ?response.status());
 
             // Handle rate limiting
             if response.status() == reqwest::StatusCode::TOO_MANY_REQUESTS {
                 let secs = 5 * 60;
-                info!(sleep_secs = ?secs, "Rate limit exceeded, waiting before retrying");
+                debug!(sleep_secs = ?secs, "Rate limit exceeded, waiting before retrying");
                 sleep(Duration::from_secs(secs));
                 continue;
             }
 
             // Handle 404 status - treat as pending since the attestation likely doesn't exist yet
             if response.status() == reqwest::StatusCode::NOT_FOUND {
-                info!(
+                debug!(
                     attempt = ?attempt,
                     max_attempts = ?max_attempts,
                     poll_interval = ?poll_interval,
@@ -252,16 +252,16 @@ impl<P: Provider<Ethereum> + Clone> Cctp<P> {
             // Ensure the response status is successful before trying to parse JSON
             response.error_for_status_ref()?;
 
-            info!("Decoding attestation response");
+            debug!("Decoding attestation response");
 
             let attestation: AttestationResponse = match response.json::<serde_json::Value>().await
             {
                 Ok(attestation) => {
-                    info!(attestation = ?attestation, "Attestation response");
+                    debug!(attestation = ?attestation, "Attestation response");
                     serde_json::from_value(attestation)?
                 }
                 Err(e) => {
-                    info!(error = ?e, "Error decoding attestation response");
+                    error!(error = ?e, "Error decoding attestation response");
                     continue;
                 }
             };
@@ -283,7 +283,7 @@ impl<P: Provider<Ethereum> + Clone> Cctp<P> {
                             hex::decode(&attestation_bytes)
                         }?;
 
-                    info!("Attestation received successfully");
+                    debug!("Attestation received successfully");
                     return Ok(attestation_bytes);
                 }
                 AttestationStatus::Failed => {
@@ -292,7 +292,7 @@ impl<P: Provider<Ethereum> + Clone> Cctp<P> {
                     });
                 }
                 AttestationStatus::Pending | AttestationStatus::PendingConfirmations => {
-                    info!(
+                    debug!(
                         attempt = ?attempt,
                         max_attempts = ?max_attempts,
                         poll_interval = ?poll_interval,

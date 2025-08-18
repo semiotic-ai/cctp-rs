@@ -32,7 +32,7 @@ bon = "3.7.0"
 reqwest = { version = "0.12.22", features = ["json"] }
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.141"
-thiserror = "2.0.12"
+thiserror = "2.0.15"
 tracing = "0.1.41"
 
 [dev-dependencies]

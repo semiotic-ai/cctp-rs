@@ -85,9 +85,9 @@ dependencies = [
 
 [[package]]
 name = "alloy-contract"
-version = "1.0.32"
+version = "1.0.34"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "591104333286b52b03ec4e8162983e31122b318d21ae2b0900d1e8b51727ad40"
+checksum = "f8f7ab0f7ea0b4844dd2039cfa0f0b26232c51b31aa74a1c444361e1ca043404"
 dependencies = [
  "alloy-consensus",
  "alloy-dyn-abi",

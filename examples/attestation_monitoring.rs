@@ -8,7 +8,7 @@ use alloy_chains::NamedChain;
 use alloy_network::Ethereum;
 use alloy_primitives::{FixedBytes, TxHash};
 use alloy_provider::{Provider, ProviderBuilder};
-use cctp_rs::{AttestationResponse, AttestationStatus, Cctp, CctpError};
+use cctp_rs::{AttestationMessage, AttestationStatus, Cctp, CctpError};
 use std::time::Duration;
 use tokio::time::sleep;
 
@@ -109,9 +109,10 @@ async fn simulate_attestation_monitoring(_bridge: &Cctp<impl Provider<Ethereum> 
                 println!("      ✅ Ready to complete bridge on destination chain!");
 
                 // Show example attestation response
-                let example_response = AttestationResponse {
+                let example_response = AttestationMessage {
                     status: AttestationStatus::Complete,
                     attestation: Some("0xabcdef...".to_string()),
+                    message: Some("0xabcdef...".to_string()),
                 };
 
                 println!("\n   📄 Example attestation response:");

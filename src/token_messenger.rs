@@ -8,28 +8,19 @@ use alloy_rpc_types::TransactionRequest;
 use alloy_sol_types::sol;
 use TokenMessenger::{depositForBurnCall, TokenMessengerInstance};
 
-/// <https://developers.circle.com/stablecoins/evm-smart-contracts>
-pub const ARBITRUM_TOKEN_MESSENGER_ADDRESS: &str = "0x19330d10D9Cc8751218eaf51E8885D058642E08A";
-/// <https://developers.circle.com/stablecoins/evm-smart-contracts>
-pub const ARBITRUM_SEPOLIA_TOKEN_MESSENGER_ADDRESS: &str =
-    "0x9f3B8679c73C2Fef8b59B4f3444d4e156fb70AA5";
-/// <https://developers.circle.com/stablecoins/evm-smart-contracts>
-pub const AVALANCHE_TOKEN_MESSENGER_ADDRESS: &str = "0x6b25532e1060ce10cc3b0a99e5683b91bfde6982";
-/// <https://developers.circle.com/stablecoins/evm-smart-contracts>
-pub const BASE_TOKEN_MESSENGER_ADDRESS: &str = "0x1682ae6375c4e4a97e4b583bc394c861a46d8962";
-/// <https://developers.circle.com/stablecoins/evm-smart-contracts>
-pub const BASE_SEPOLIA_TOKEN_MESSENGER_ADDRESS: &str = "0x9f3B8679c73C2Fef8b59B4f3444d4e156fb70AA5";
-/// <https://developers.circle.com/stablecoins/evm-smart-contracts>
-pub const ETHEREUM_TOKEN_MESSENGER_ADDRESS: &str = "0xbd3fa81b58ba92a82136038b25adec7066af3155";
-/// <https://developers.circle.com/stablecoins/evm-smart-contracts>
-pub const ETHEREUM_SEPOLIA_TOKEN_MESSENGER_ADDRESS: &str =
-    "0x9f3B8679c73C2Fef8b59B4f3444d4e156fb70AA5";
-/// <https://developers.circle.com/stablecoins/evm-smart-contracts>
-pub const OPTIMISM_TOKEN_MESSENGER_ADDRESS: &str = "0x2B4069517957735bE00ceE0fadAE88a26365528f";
-/// <https://developers.circle.com/stablecoins/evm-smart-contracts>
-pub const POLYGON_CCTP_V1_TOKEN_MESSENGER: &str = "0x9daF8c91AEFAE50b9c0E69629D3F6Ca40cA3B3FE";
-/// <https://uniscan.xyz/address/0x4e744b28E787c3aD0e810eD65A24461D4ac5a762>
-pub const UNICHAIN_CCTP_V1_TOKEN_MESSENGER: &str = "0x4e744b28E787c3aD0e810eD65A24461D4ac5a762";
+// https://developers.circle.com/cctp/evm-smart-contracts
+pub const TOKEN_MESSENGER_CONTRACT: &str = "0x28b5a0e9C621a5BadaA536219b3a228C8168cf5d";
+pub const TOKEN_MESSENGER_CONTRACT_TESTNET: &str = "0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA";
+pub const ARBITRUM_TOKEN_MESSENGER_ADDRESS: &str = TOKEN_MESSENGER_CONTRACT;
+pub const ARBITRUM_SEPOLIA_TOKEN_MESSENGER_ADDRESS: &str = TOKEN_MESSENGER_CONTRACT_TESTNET;
+pub const AVALANCHE_TOKEN_MESSENGER_ADDRESS: &str = TOKEN_MESSENGER_CONTRACT;
+pub const BASE_TOKEN_MESSENGER_ADDRESS: &str = TOKEN_MESSENGER_CONTRACT;
+pub const BASE_SEPOLIA_TOKEN_MESSENGER_ADDRESS: &str = TOKEN_MESSENGER_CONTRACT_TESTNET;
+pub const ETHEREUM_TOKEN_MESSENGER_ADDRESS: &str = TOKEN_MESSENGER_CONTRACT;
+pub const ETHEREUM_SEPOLIA_TOKEN_MESSENGER_ADDRESS: &str = TOKEN_MESSENGER_CONTRACT_TESTNET;
+pub const OPTIMISM_TOKEN_MESSENGER_ADDRESS: &str = TOKEN_MESSENGER_CONTRACT;
+pub const POLYGON_CCTP_TOKEN_MESSENGER: &str = TOKEN_MESSENGER_CONTRACT;
+pub const UNICHAIN_CCTP_TOKEN_MESSENGER: &str = TOKEN_MESSENGER_CONTRACT;
 
 /// The CCTP v1 Token Messenger contract.
 pub struct TokenMessengerContract<P: Provider<Ethereum>> {
@@ -47,6 +38,10 @@ impl<P: Provider<Ethereum>> TokenMessengerContract<P> {
     /// Create the call builder for the `depositForBurn` function.
     ///
     /// Most users will want to use the `deposit_for_burn_transaction` function instead.
+    /// destination_caller: Address as bytes32 which can call receiveMessage on destination domain. If set to bytes32(0), any address can call receiveMessage
+    /// max_fee: Max fee paid for fast burn, specified in units of burnToken
+    /// min_finality_threshold: Minimum finality threshold at which burn will be attested
+    #[allow(clippy::too_many_arguments)]
     pub fn deposit_for_burn_call_builder(
         &self,
         from_address: Address,
@@ -54,6 +49,9 @@ impl<P: Provider<Ethereum>> TokenMessengerContract<P> {
         destination_domain: u32,
         token_address: Address,
         amount: U256,
+        destination_caller: Option<Address>,
+        max_fee: Option<U256>,
+        min_finality_threshold: Option<u32>,
     ) -> CallBuilder<&P, PhantomData<depositForBurnCall>> {
         self.instance
             .depositForBurn(
@@ -61,6 +59,9 @@ impl<P: Provider<Ethereum>> TokenMessengerContract<P> {
                 destination_domain,
                 recipient.into_word(),
                 token_address,
+                destination_caller.unwrap_or(Address::ZERO).into_word(),
+                max_fee.unwrap_or(U256::from(3)),
+                min_finality_threshold.unwrap_or(0),
             )
             .from(from_address)
     }
@@ -68,6 +69,10 @@ impl<P: Provider<Ethereum>> TokenMessengerContract<P> {
     /// Create the transaction request for the `depositForBurn` function.
     ///
     /// Most users will want to use this function instead of the `deposit_for_burn_call_builder` function.
+    /// destination_caller: Address as bytes32 which can call receiveMessage on destination domain. If set to bytes32(0), any address can call receiveMessage
+    /// max_fee: Max fee paid for fast burn, specified in units of burnToken
+    /// min_finality_threshold: Minimum finality threshold at which burn will be attested
+    #[allow(clippy::too_many_arguments)]
     pub fn deposit_for_burn_transaction(
         &self,
         from_address: Address,
@@ -75,6 +80,9 @@ impl<P: Provider<Ethereum>> TokenMessengerContract<P> {
         destination_domain: u32,
         token_address: Address,
         amount: U256,
+        destination_caller: Option<Address>,
+        max_fee: Option<U256>,
+        min_finality_threshold: Option<u32>,
     ) -> TransactionRequest {
         self.deposit_for_burn_call_builder(
             from_address,
@@ -82,6 +90,9 @@ impl<P: Provider<Ethereum>> TokenMessengerContract<P> {
             destination_domain,
             token_address,
             amount,
+            destination_caller,
+            max_fee,
+            min_finality_threshold,
         )
         .into_transaction_request()
     }
@@ -92,5 +103,5 @@ sol!(
     #[allow(missing_docs)]
     #[sol(rpc)]
     TokenMessenger,
-    "abis/v1_token_messenger.json"
+    "abis/v2_token_messenger.json"
 );

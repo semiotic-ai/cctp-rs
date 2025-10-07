@@ -1,4 +1,7 @@
-use crate::error::{CctpError, Result};
+use crate::{
+    error::{CctpError, Result},
+    Attestation,
+};
 use alloy_chains::NamedChain;
 use alloy_network::Ethereum;
 use alloy_primitives::{hex, Address, FixedBytes, TxHash, U256};
@@ -9,7 +12,7 @@ use reqwest::{Client, Response};
 use std::{thread::sleep, time::Duration};
 use tracing::{debug, error, info, instrument, trace, Level};
 
-use crate::{AttestationBytes, AttestationResponse, AttestationStatus, CctpV1};
+use crate::{AttestationResponse, AttestationStatus, CctpV1};
 
 use super::MessageTransmitter::MessageSent;
 
@@ -135,8 +138,11 @@ impl<P: Provider<Ethereum> + Clone> Cctp<P> {
     /// The full URL to query the attestation status
     pub fn iris_api_url(&self, message_hash: &FixedBytes<32>) -> String {
         format!(
-            "{}/attestations/{}",
+            "{}/v2/messages/{}?transactionHash=0x{}",
             self.api_url(),
+            self.source_chain()
+                .cctp_domain_id()
+                .expect("Chain is not supported"),
             hex::encode(message_hash)
         )
     }
@@ -207,7 +213,7 @@ impl<P: Provider<Ethereum> + Clone> Cctp<P> {
         message_hash: FixedBytes<32>,
         max_attempts: Option<u32>,
         poll_interval: Option<u64>,
-    ) -> Result<AttestationBytes> {
+    ) -> Result<Attestation> {
         let client = Client::new();
         let max_attempts = max_attempts.unwrap_or(30);
         let poll_interval = poll_interval.unwrap_or(60);
@@ -266,10 +272,15 @@ impl<P: Provider<Ethereum> + Clone> Cctp<P> {
                 }
             };
 
-            match attestation.status {
+            if attestation.messages.is_empty() {
+                return Err(CctpError::EmptyAttestation);
+            }
+
+            let message = attestation.messages.into_iter().next().unwrap();
+            match message.status {
                 AttestationStatus::Complete => {
                     let attestation_bytes =
-                        attestation
+                        message
                             .attestation
                             .ok_or_else(|| CctpError::AttestationFailed {
                                 reason: "Attestation missing".to_string(),
@@ -282,9 +293,24 @@ impl<P: Provider<Ethereum> + Clone> Cctp<P> {
                         } else {
                             hex::decode(&attestation_bytes)
                         }?;
+                    let attestation_message =
+                        message
+                            .message
+                            .ok_or_else(|| CctpError::AttestationFailed {
+                                reason: "Attestation message missing".to_string(),
+                            })?;
 
+                    let attestation_message =
+                        if let Some(stripped) = attestation_message.strip_prefix("0x") {
+                            hex::decode(stripped)
+                        } else {
+                            hex::decode(&attestation_message)
+                        }?;
                     debug!("Attestation received successfully");
-                    return Ok(attestation_bytes);
+                    return Ok(Attestation {
+                        attestation: attestation_bytes,
+                        message: attestation_message,
+                    });
                 }
                 AttestationStatus::Failed => {
                     return Err(CctpError::AttestationFailed {
@@ -308,8 +334,7 @@ impl<P: Provider<Ethereum> + Clone> Cctp<P> {
 
     /// See <https://developers.circle.com/stablecoins/cctp-apis>
     pub fn create_url(&self, message_hash: FixedBytes<32>) -> String {
-        let base_url = self.api_url();
-        format!("{base_url}/v1/attestations/{message_hash}")
+        self.iris_api_url(&message_hash)
     }
 
     /// Gets the attestation for a message hash from the CCTP API

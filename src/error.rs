@@ -45,6 +45,9 @@ pub enum CctpError {
 
     #[error("Hex conversion error: {0}")]
     Hex(#[from] alloy_primitives::hex::FromHexError),
+
+    #[error("No attestation messages found from server")]
+    EmptyAttestation,
 }
 
 pub type Result<T> = std::result::Result<T, CctpError>;

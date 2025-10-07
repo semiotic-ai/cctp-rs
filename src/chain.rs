@@ -12,9 +12,9 @@ use crate::{
     BASE_TOKEN_MESSENGER_ADDRESS, ETHEREUM_DOMAIN_ID, ETHEREUM_MESSAGE_TRANSMITTER_ADDRESS,
     ETHEREUM_SEPOLIA_MESSAGE_TRANSMITTER_ADDRESS, ETHEREUM_SEPOLIA_TOKEN_MESSENGER_ADDRESS,
     ETHEREUM_TOKEN_MESSENGER_ADDRESS, OPTIMISM_DOMAIN_ID, OPTIMISM_MESSAGE_TRANSMITTER_ADDRESS,
-    OPTIMISM_TOKEN_MESSENGER_ADDRESS, POLYGON_CCTP_V1_MESSAGE_TRANSMITTER,
-    POLYGON_CCTP_V1_TOKEN_MESSENGER, POLYGON_DOMAIN_ID, UNICHAIN_CCTP_V1_MESSAGE_TRANSMITTER,
-    UNICHAIN_CCTP_V1_TOKEN_MESSENGER, UNICHAIN_DOMAIN_ID,
+    OPTIMISM_TOKEN_MESSENGER_ADDRESS, POLYGON_CCTP_MESSAGE_TRANSMITTER,
+    POLYGON_CCTP_TOKEN_MESSENGER, POLYGON_DOMAIN_ID, UNICHAIN_CCTP_MESSAGE_TRANSMITTER,
+    UNICHAIN_CCTP_TOKEN_MESSENGER, UNICHAIN_DOMAIN_ID,
 };
 
 /// Trait for chains that support CCTP bridging
@@ -78,8 +78,8 @@ impl CctpV1 for NamedChain {
             Sepolia => ETHEREUM_SEPOLIA_TOKEN_MESSENGER_ADDRESS,
             Mainnet => ETHEREUM_TOKEN_MESSENGER_ADDRESS,
             Optimism => OPTIMISM_TOKEN_MESSENGER_ADDRESS,
-            Polygon => POLYGON_CCTP_V1_TOKEN_MESSENGER,
-            Unichain => UNICHAIN_CCTP_V1_TOKEN_MESSENGER,
+            Polygon => POLYGON_CCTP_TOKEN_MESSENGER,
+            Unichain => UNICHAIN_CCTP_TOKEN_MESSENGER,
             _ => {
                 return Err(CctpError::ChainNotSupported {
                     chain: self.to_string(),
@@ -102,12 +102,12 @@ impl CctpV1 for NamedChain {
             Base => BASE_MESSAGE_TRANSMITTER_ADDRESS,
             Mainnet => ETHEREUM_MESSAGE_TRANSMITTER_ADDRESS,
             Optimism => OPTIMISM_MESSAGE_TRANSMITTER_ADDRESS,
-            Polygon => POLYGON_CCTP_V1_MESSAGE_TRANSMITTER,
+            Polygon => POLYGON_CCTP_MESSAGE_TRANSMITTER,
             // Testnets
             ArbitrumSepolia => ARBITRUM_SEPOLIA_MESSAGE_TRANSMITTER_ADDRESS,
             BaseSepolia => BASE_SEPOLIA_MESSAGE_TRANSMITTER_ADDRESS,
             Sepolia => ETHEREUM_SEPOLIA_MESSAGE_TRANSMITTER_ADDRESS,
-            Unichain => UNICHAIN_CCTP_V1_MESSAGE_TRANSMITTER,
+            Unichain => UNICHAIN_CCTP_MESSAGE_TRANSMITTER,
             _ => {
                 return Err(CctpError::ChainNotSupported {
                     chain: self.to_string(),
@@ -234,8 +234,8 @@ mod tests {
     #[case(NamedChain::Sepolia, ETHEREUM_SEPOLIA_TOKEN_MESSENGER_ADDRESS)]
     #[case(NamedChain::Mainnet, ETHEREUM_TOKEN_MESSENGER_ADDRESS)]
     #[case(NamedChain::Optimism, OPTIMISM_TOKEN_MESSENGER_ADDRESS)]
-    #[case(NamedChain::Polygon, POLYGON_CCTP_V1_TOKEN_MESSENGER)]
-    #[case(NamedChain::Unichain, UNICHAIN_CCTP_V1_TOKEN_MESSENGER)]
+    #[case(NamedChain::Polygon, POLYGON_CCTP_TOKEN_MESSENGER)]
+    #[case(NamedChain::Unichain, UNICHAIN_CCTP_TOKEN_MESSENGER)]
     fn test_token_messenger_address_supported_chains(
         #[case] chain: NamedChain,
         #[case] expected_str: &str,
@@ -261,14 +261,14 @@ mod tests {
     #[case(NamedChain::Base, BASE_MESSAGE_TRANSMITTER_ADDRESS)]
     #[case(NamedChain::Mainnet, ETHEREUM_MESSAGE_TRANSMITTER_ADDRESS)]
     #[case(NamedChain::Optimism, OPTIMISM_MESSAGE_TRANSMITTER_ADDRESS)]
-    #[case(NamedChain::Polygon, POLYGON_CCTP_V1_MESSAGE_TRANSMITTER)]
+    #[case(NamedChain::Polygon, POLYGON_CCTP_MESSAGE_TRANSMITTER)]
     #[case(
         NamedChain::ArbitrumSepolia,
         ARBITRUM_SEPOLIA_MESSAGE_TRANSMITTER_ADDRESS
     )]
     #[case(NamedChain::BaseSepolia, BASE_SEPOLIA_MESSAGE_TRANSMITTER_ADDRESS)]
     #[case(NamedChain::Sepolia, ETHEREUM_SEPOLIA_MESSAGE_TRANSMITTER_ADDRESS)]
-    #[case(NamedChain::Unichain, UNICHAIN_CCTP_V1_MESSAGE_TRANSMITTER)]
+    #[case(NamedChain::Unichain, UNICHAIN_CCTP_MESSAGE_TRANSMITTER)]
     fn test_message_transmitter_address_supported_chains(
         #[case] chain: NamedChain,
         #[case] expected_str: &str,

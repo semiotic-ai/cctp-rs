@@ -25,7 +25,7 @@ alloy-provider = { version = "1.0.34", default-features = false, features = [
     "anvil-node",
     "reqwest",
 ] }
-alloy-rpc-types = "1.0.34"
+alloy-rpc-types = "1.0.38"
 alloy-sol-types = { version = "1.4.0", features = ["json"] }
 alloy-transport = { version = "1.0.36", default-features = false }
 bon = "3.8.1"

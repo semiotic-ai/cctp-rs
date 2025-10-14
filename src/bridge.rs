@@ -212,27 +212,39 @@ impl<P: Provider<Ethereum> + Clone> Cctp<P> {
         let max_attempts = max_attempts.unwrap_or(30);
         let poll_interval = poll_interval.unwrap_or(60);
 
-        info!(message_hash = ?message_hash, "Polling for attestation ...");
+        info!(
+            message_hash = %hex::encode(message_hash),
+            event = "attestation_polling_started"
+        );
 
         let url = self.create_url(message_hash);
 
-        info!(url = ?url, "Attestation URL");
+        info!(
+            url = %url,
+            event = "attestation_url_created"
+        );
 
         for attempt in 1..=max_attempts {
             trace!(
-                attempt = ?attempt,
-                max_attempts = ?max_attempts,
-                "Getting attestation ..."
+                attempt = attempt,
+                max_attempts = max_attempts,
+                event = "attestation_attempt"
             );
             let response = self.get_attestation(&client, &url).await?;
-            trace!(response = ?response);
+            trace!(
+                status_code = %response.status(),
+                event = "attestation_response_received"
+            );
 
-            trace!(attestation_status = ?response.status());
+            trace!(
+                status_code = %response.status(),
+                event = "checking_response_status"
+            );
 
             // Handle rate limiting
             if response.status() == reqwest::StatusCode::TOO_MANY_REQUESTS {
                 let secs = 5 * 60;
-                debug!(sleep_secs = ?secs, "Rate limit exceeded, waiting before retrying");
+                debug!(sleep_secs = secs, event = "rate_limit_exceeded");
                 sleep(Duration::from_secs(secs));
                 continue;
             }
@@ -240,10 +252,10 @@ impl<P: Provider<Ethereum> + Clone> Cctp<P> {
             // Handle 404 status - treat as pending since the attestation likely doesn't exist yet
             if response.status() == reqwest::StatusCode::NOT_FOUND {
                 debug!(
-                    attempt = ?attempt,
-                    max_attempts = ?max_attempts,
-                    poll_interval = ?poll_interval,
-                    "Attestation not found (404), waiting before retrying"
+                    attempt = attempt,
+                    max_attempts = max_attempts,
+                    poll_interval_secs = poll_interval,
+                    event = "attestation_not_found"
                 );
                 sleep(Duration::from_secs(poll_interval));
                 continue;
@@ -252,16 +264,22 @@ impl<P: Provider<Ethereum> + Clone> Cctp<P> {
             // Ensure the response status is successful before trying to parse JSON
             response.error_for_status_ref()?;
 
-            debug!("Decoding attestation response");
+            debug!(event = "decoding_attestation_response");
 
             let attestation: AttestationResponse = match response.json::<serde_json::Value>().await
             {
                 Ok(attestation) => {
-                    debug!(attestation = ?attestation, "Attestation response");
+                    debug!(
+                        attestation = ?attestation,
+                        event = "attestation_decoded"
+                    );
                     serde_json::from_value(attestation)?
                 }
                 Err(e) => {
-                    error!(error = ?e, "Error decoding attestation response");
+                    error!(
+                        error = %e,
+                        event = "attestation_decode_failed"
+                    );
                     continue;
                 }
             };
@@ -283,7 +301,7 @@ impl<P: Provider<Ethereum> + Clone> Cctp<P> {
                             hex::decode(&attestation_bytes)
                         }?;
 
-                    debug!("Attestation received successfully");
+                    debug!(event = "attestation_received_successfully");
                     return Ok(attestation_bytes);
                 }
                 AttestationStatus::Failed => {
@@ -293,10 +311,10 @@ impl<P: Provider<Ethereum> + Clone> Cctp<P> {
                 }
                 AttestationStatus::Pending | AttestationStatus::PendingConfirmations => {
                     debug!(
-                        attempt = ?attempt,
-                        max_attempts = ?max_attempts,
-                        poll_interval = ?poll_interval,
-                        "Attestation pending, waiting before retrying"
+                        attempt = attempt,
+                        max_attempts = max_attempts,
+                        poll_interval_secs = poll_interval,
+                        event = "attestation_pending"
                     );
                     sleep(Duration::from_secs(poll_interval));
                 }

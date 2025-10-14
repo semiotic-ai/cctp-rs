@@ -2,34 +2,42 @@ use std::marker::PhantomData;
 
 use alloy_contract::CallBuilder;
 use alloy_network::Ethereum;
-use alloy_primitives::{Address, U256};
+use alloy_primitives::{address, Address, U256};
 use alloy_provider::Provider;
 use alloy_rpc_types::TransactionRequest;
 use alloy_sol_types::sol;
 use TokenMessenger::{depositForBurnCall, TokenMessengerInstance};
 
 /// <https://developers.circle.com/stablecoins/evm-smart-contracts>
-pub const ARBITRUM_TOKEN_MESSENGER_ADDRESS: &str = "0x19330d10D9Cc8751218eaf51E8885D058642E08A";
+pub const ARBITRUM_TOKEN_MESSENGER_ADDRESS: Address =
+    address!("19330d10D9Cc8751218eaf51E8885D058642E08A");
 /// <https://developers.circle.com/stablecoins/evm-smart-contracts>
-pub const ARBITRUM_SEPOLIA_TOKEN_MESSENGER_ADDRESS: &str =
-    "0x9f3B8679c73C2Fef8b59B4f3444d4e156fb70AA5";
+pub const ARBITRUM_SEPOLIA_TOKEN_MESSENGER_ADDRESS: Address =
+    address!("9f3B8679c73C2Fef8b59B4f3444d4e156fb70AA5");
 /// <https://developers.circle.com/stablecoins/evm-smart-contracts>
-pub const AVALANCHE_TOKEN_MESSENGER_ADDRESS: &str = "0x6b25532e1060ce10cc3b0a99e5683b91bfde6982";
+pub const AVALANCHE_TOKEN_MESSENGER_ADDRESS: Address =
+    address!("6b25532e1060ce10cc3b0a99e5683b91bfde6982");
 /// <https://developers.circle.com/stablecoins/evm-smart-contracts>
-pub const BASE_TOKEN_MESSENGER_ADDRESS: &str = "0x1682ae6375c4e4a97e4b583bc394c861a46d8962";
+pub const BASE_TOKEN_MESSENGER_ADDRESS: Address =
+    address!("1682ae6375c4e4a97e4b583bc394c861a46d8962");
 /// <https://developers.circle.com/stablecoins/evm-smart-contracts>
-pub const BASE_SEPOLIA_TOKEN_MESSENGER_ADDRESS: &str = "0x9f3B8679c73C2Fef8b59B4f3444d4e156fb70AA5";
+pub const BASE_SEPOLIA_TOKEN_MESSENGER_ADDRESS: Address =
+    address!("9f3B8679c73C2Fef8b59B4f3444d4e156fb70AA5");
 /// <https://developers.circle.com/stablecoins/evm-smart-contracts>
-pub const ETHEREUM_TOKEN_MESSENGER_ADDRESS: &str = "0xbd3fa81b58ba92a82136038b25adec7066af3155";
+pub const ETHEREUM_TOKEN_MESSENGER_ADDRESS: Address =
+    address!("bd3fa81b58ba92a82136038b25adec7066af3155");
 /// <https://developers.circle.com/stablecoins/evm-smart-contracts>
-pub const ETHEREUM_SEPOLIA_TOKEN_MESSENGER_ADDRESS: &str =
-    "0x9f3B8679c73C2Fef8b59B4f3444d4e156fb70AA5";
+pub const ETHEREUM_SEPOLIA_TOKEN_MESSENGER_ADDRESS: Address =
+    address!("9f3B8679c73C2Fef8b59B4f3444d4e156fb70AA5");
 /// <https://developers.circle.com/stablecoins/evm-smart-contracts>
-pub const OPTIMISM_TOKEN_MESSENGER_ADDRESS: &str = "0x2B4069517957735bE00ceE0fadAE88a26365528f";
+pub const OPTIMISM_TOKEN_MESSENGER_ADDRESS: Address =
+    address!("2B4069517957735bE00ceE0fadAE88a26365528f");
 /// <https://developers.circle.com/stablecoins/evm-smart-contracts>
-pub const POLYGON_CCTP_V1_TOKEN_MESSENGER: &str = "0x9daF8c91AEFAE50b9c0E69629D3F6Ca40cA3B3FE";
+pub const POLYGON_CCTP_V1_TOKEN_MESSENGER: Address =
+    address!("9daF8c91AEFAE50b9c0E69629D3F6Ca40cA3B3FE");
 /// <https://uniscan.xyz/address/0x4e744b28E787c3aD0e810eD65A24461D4ac5a762>
-pub const UNICHAIN_CCTP_V1_TOKEN_MESSENGER: &str = "0x4e744b28E787c3aD0e810eD65A24461D4ac5a762";
+pub const UNICHAIN_CCTP_V1_TOKEN_MESSENGER: Address =
+    address!("4e744b28E787c3aD0e810eD65A24461D4ac5a762");
 
 /// The CCTP v1 Token Messenger contract.
 pub struct TokenMessengerContract<P: Provider<Ethereum>> {

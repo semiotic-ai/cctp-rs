@@ -69,56 +69,42 @@ impl CctpV1 for NamedChain {
     fn token_messenger_address(&self) -> Result<Address> {
         use NamedChain::*;
 
-        let address_str = match self {
-            Arbitrum => ARBITRUM_TOKEN_MESSENGER_ADDRESS,
-            ArbitrumSepolia => ARBITRUM_SEPOLIA_TOKEN_MESSENGER_ADDRESS,
-            Avalanche => AVALANCHE_TOKEN_MESSENGER_ADDRESS,
-            Base => BASE_TOKEN_MESSENGER_ADDRESS,
-            BaseSepolia => BASE_SEPOLIA_TOKEN_MESSENGER_ADDRESS,
-            Sepolia => ETHEREUM_SEPOLIA_TOKEN_MESSENGER_ADDRESS,
-            Mainnet => ETHEREUM_TOKEN_MESSENGER_ADDRESS,
-            Optimism => OPTIMISM_TOKEN_MESSENGER_ADDRESS,
-            Polygon => POLYGON_CCTP_V1_TOKEN_MESSENGER,
-            Unichain => UNICHAIN_CCTP_V1_TOKEN_MESSENGER,
-            _ => {
-                return Err(CctpError::ChainNotSupported {
-                    chain: self.to_string(),
-                })
-            }
-        };
-
-        address_str.parse().map_err(|e| CctpError::InvalidAddress {
-            address: address_str.to_string(),
-            source: e,
-        })
+        match self {
+            Arbitrum => Ok(ARBITRUM_TOKEN_MESSENGER_ADDRESS),
+            ArbitrumSepolia => Ok(ARBITRUM_SEPOLIA_TOKEN_MESSENGER_ADDRESS),
+            Avalanche => Ok(AVALANCHE_TOKEN_MESSENGER_ADDRESS),
+            Base => Ok(BASE_TOKEN_MESSENGER_ADDRESS),
+            BaseSepolia => Ok(BASE_SEPOLIA_TOKEN_MESSENGER_ADDRESS),
+            Sepolia => Ok(ETHEREUM_SEPOLIA_TOKEN_MESSENGER_ADDRESS),
+            Mainnet => Ok(ETHEREUM_TOKEN_MESSENGER_ADDRESS),
+            Optimism => Ok(OPTIMISM_TOKEN_MESSENGER_ADDRESS),
+            Polygon => Ok(POLYGON_CCTP_V1_TOKEN_MESSENGER),
+            Unichain => Ok(UNICHAIN_CCTP_V1_TOKEN_MESSENGER),
+            _ => Err(CctpError::ChainNotSupported {
+                chain: self.to_string(),
+            }),
+        }
     }
 
     fn message_transmitter_address(&self) -> Result<Address> {
         use NamedChain::*;
 
-        let address_str = match self {
-            Arbitrum => ARBITRUM_MESSAGE_TRANSMITTER_ADDRESS,
-            Avalanche => AVALANCHE_MESSAGE_TRANSMITTER_ADDRESS,
-            Base => BASE_MESSAGE_TRANSMITTER_ADDRESS,
-            Mainnet => ETHEREUM_MESSAGE_TRANSMITTER_ADDRESS,
-            Optimism => OPTIMISM_MESSAGE_TRANSMITTER_ADDRESS,
-            Polygon => POLYGON_CCTP_V1_MESSAGE_TRANSMITTER,
+        match self {
+            Arbitrum => Ok(ARBITRUM_MESSAGE_TRANSMITTER_ADDRESS),
+            Avalanche => Ok(AVALANCHE_MESSAGE_TRANSMITTER_ADDRESS),
+            Base => Ok(BASE_MESSAGE_TRANSMITTER_ADDRESS),
+            Mainnet => Ok(ETHEREUM_MESSAGE_TRANSMITTER_ADDRESS),
+            Optimism => Ok(OPTIMISM_MESSAGE_TRANSMITTER_ADDRESS),
+            Polygon => Ok(POLYGON_CCTP_V1_MESSAGE_TRANSMITTER),
             // Testnets
-            ArbitrumSepolia => ARBITRUM_SEPOLIA_MESSAGE_TRANSMITTER_ADDRESS,
-            BaseSepolia => BASE_SEPOLIA_MESSAGE_TRANSMITTER_ADDRESS,
-            Sepolia => ETHEREUM_SEPOLIA_MESSAGE_TRANSMITTER_ADDRESS,
-            Unichain => UNICHAIN_CCTP_V1_MESSAGE_TRANSMITTER,
-            _ => {
-                return Err(CctpError::ChainNotSupported {
-                    chain: self.to_string(),
-                })
-            }
-        };
-
-        address_str.parse().map_err(|e| CctpError::InvalidAddress {
-            address: address_str.to_string(),
-            source: e,
-        })
+            ArbitrumSepolia => Ok(ARBITRUM_SEPOLIA_MESSAGE_TRANSMITTER_ADDRESS),
+            BaseSepolia => Ok(BASE_SEPOLIA_MESSAGE_TRANSMITTER_ADDRESS),
+            Sepolia => Ok(ETHEREUM_SEPOLIA_MESSAGE_TRANSMITTER_ADDRESS),
+            Unichain => Ok(UNICHAIN_CCTP_V1_MESSAGE_TRANSMITTER),
+            _ => Err(CctpError::ChainNotSupported {
+                chain: self.to_string(),
+            }),
+        }
     }
 
     fn is_supported(&self) -> bool {
@@ -238,10 +224,9 @@ mod tests {
     #[case(NamedChain::Unichain, UNICHAIN_CCTP_V1_TOKEN_MESSENGER)]
     fn test_token_messenger_address_supported_chains(
         #[case] chain: NamedChain,
-        #[case] expected_str: &str,
+        #[case] expected: Address,
     ) {
         let result = chain.token_messenger_address().unwrap();
-        let expected: Address = expected_str.parse().unwrap();
         assert_eq!(result, expected);
     }
 
@@ -271,10 +256,9 @@ mod tests {
     #[case(NamedChain::Unichain, UNICHAIN_CCTP_V1_MESSAGE_TRANSMITTER)]
     fn test_message_transmitter_address_supported_chains(
         #[case] chain: NamedChain,
-        #[case] expected_str: &str,
+        #[case] expected: Address,
     ) {
         let result = chain.message_transmitter_address().unwrap();
-        let expected: Address = expected_str.parse().unwrap();
         assert_eq!(result, expected);
     }
 

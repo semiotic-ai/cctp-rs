@@ -1,17 +1,9 @@
-use alloy_primitives::hex::FromHexError;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum CctpError {
     #[error("Chain not supported: {chain}")]
     ChainNotSupported { chain: String },
-
-    #[error("Invalid address: {address}")]
-    InvalidAddress {
-        address: String,
-        #[source]
-        source: FromHexError,
-    },
 
     #[error("Network error: {0}")]
     Network(#[from] reqwest::Error),

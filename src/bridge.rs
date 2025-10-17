@@ -6,7 +6,8 @@ use alloy_provider::Provider;
 use alloy_sol_types::SolEvent;
 use bon::Builder;
 use reqwest::{Client, Response};
-use std::{thread::sleep, time::Duration};
+use std::time::Duration;
+use tokio::time::sleep;
 use tracing::{debug, error, info, instrument, trace, Level};
 
 use crate::{AttestationBytes, AttestationResponse, AttestationStatus, CctpV1};
@@ -245,7 +246,7 @@ impl<P: Provider<Ethereum> + Clone> Cctp<P> {
             if response.status() == reqwest::StatusCode::TOO_MANY_REQUESTS {
                 let secs = 5 * 60;
                 debug!(sleep_secs = secs, event = "rate_limit_exceeded");
-                sleep(Duration::from_secs(secs));
+                sleep(Duration::from_secs(secs)).await;
                 continue;
             }
 
@@ -257,7 +258,7 @@ impl<P: Provider<Ethereum> + Clone> Cctp<P> {
                     poll_interval_secs = poll_interval,
                     event = "attestation_not_found"
                 );
-                sleep(Duration::from_secs(poll_interval));
+                sleep(Duration::from_secs(poll_interval)).await;
                 continue;
             }
 
@@ -316,7 +317,7 @@ impl<P: Provider<Ethereum> + Clone> Cctp<P> {
                         poll_interval_secs = poll_interval,
                         event = "attestation_pending"
                     );
-                    sleep(Duration::from_secs(poll_interval));
+                    sleep(Duration::from_secs(poll_interval)).await;
                 }
             }
         }

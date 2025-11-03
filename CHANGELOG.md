@@ -5,6 +5,52 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2025-11-03
+
+### Added
+
+- **Trait-based architecture** enabling comprehensive testing through dependency injection
+- New `traits` module with `BlockchainProvider`, `AttestationProvider`, and `Clock` traits
+- New `providers` module with production implementations:
+  - `AlloyProvider` - Wraps Alloy RPC providers for blockchain operations
+  - `IrisAttestationProvider` - Production/sandbox Circle API client
+  - `TokioClock` - Real tokio::time-based clock implementation
+- New `receipt_adapter` module with `ReceiptAdapter` trait for network-specific receipt handling
+- `EthereumReceiptAdapter` implementation for Ethereum-compatible networks
+- Comprehensive example in `examples/test_fakes.rs` demonstrating fake implementations for testing
+- `AttestationResponse` now derives `Clone` to support test scenarios
+
+### Changed
+
+- **BREAKING**: `Cctp` struct now has 7 type parameters (up from 2) for full dependency injection:
+  - `SN` - Source network type
+  - `DN` - Destination network type
+  - `SP` - Source blockchain provider
+  - `DP` - Destination blockchain provider
+  - `A` - Attestation provider
+  - `C` - Clock implementation
+  - `RA` - Receipt adapter
+- **BREAKING**: Builder API now requires explicit provider injection:
+  - Must wrap RPC providers with `AlloyProvider::new(provider)`
+  - Must provide `attestation_provider(IrisAttestationProvider::production())`
+  - Must provide `clock(TokioClock::new())`
+  - Must provide `receipt_adapter(EthereumReceiptAdapter)`
+- **BREAKING**: Updated to Alloy 1.0+ API conventions
+- All examples updated to use new trait-based API
+- Library documentation updated with migration guide
+
+### Benefits
+
+- Full testability with ability to inject fake implementations for adversarial testing
+- Time control in tests without actual waiting
+- Network flexibility through receipt adapter abstraction
+- Type-safe external dependencies
+- Maintained backward compatibility for chain configurations and contract addresses
+
+### Migration
+
+See the [Migration Guide](README.md#migration-guide-from-version-1x-to-200) in README.md for detailed upgrade instructions.
+
 ## [0.4.0] - 2025-10-14
 
 ### Changed

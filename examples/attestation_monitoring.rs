@@ -5,10 +5,10 @@
 //! Run with: `cargo run --example attestation_monitoring`
 
 use alloy_chains::NamedChain;
-use alloy_network::Ethereum;
 use alloy_primitives::{FixedBytes, TxHash};
-use alloy_provider::{Provider, ProviderBuilder};
-use cctp_rs::{AttestationResponse, AttestationStatus, Cctp, CctpError};
+use alloy_provider::ProviderBuilder;
+use cctp_rs::providers::{AlloyProvider, IrisAttestationProvider, TokioClock};
+use cctp_rs::{AttestationResponse, AttestationStatus, Cctp, CctpError, UniversalReceiptAdapter};
 use std::time::Duration;
 use tokio::time::sleep;
 
@@ -27,8 +27,11 @@ async fn main() -> Result<(), CctpError> {
     let bridge = Cctp::builder()
         .source_chain(NamedChain::Mainnet)
         .destination_chain(NamedChain::Arbitrum)
-        .source_provider(eth_provider)
-        .destination_provider(arb_provider)
+        .source_provider(AlloyProvider::new(eth_provider))
+        .destination_provider(AlloyProvider::new(arb_provider))
+        .attestation_provider(IrisAttestationProvider::production())
+        .clock(TokioClock::new())
+        .receipt_adapter(UniversalReceiptAdapter)
         .recipient(
             "0x742d35Cc6634C0532925a3b844Bc9e7595f8fA0d"
                 .parse()
@@ -74,7 +77,17 @@ async fn main() -> Result<(), CctpError> {
 }
 
 /// Simulates monitoring attestation status changes
-async fn simulate_attestation_monitoring(_bridge: &Cctp<impl Provider<Ethereum> + Clone>) {
+async fn simulate_attestation_monitoring<SN, DN, SP, DP, A, C, RA>(
+    _bridge: &Cctp<SN, DN, SP, DP, A, C, RA>,
+) where
+    SN: alloy_network::Network,
+    DN: alloy_network::Network,
+    SP: cctp_rs::traits::BlockchainProvider<SN>,
+    DP: cctp_rs::traits::BlockchainProvider<DN>,
+    A: cctp_rs::traits::AttestationProvider,
+    C: cctp_rs::traits::Clock,
+    RA: cctp_rs::ReceiptAdapter<SN>,
+{
     println!("\n📈 Simulating attestation status progression:");
 
     let statuses = [

@@ -1,6 +1,6 @@
 [package]
 name = "cctp-rs"
-version = "0.5.1"
+version = "2.0.0"
 edition = "2021"
 authors = ["Joseph Livesey <joseph@semiotic.ai>"]
 categories = ["finance", "api-bindings"]
@@ -28,6 +28,7 @@ alloy-provider = { version = "1.0.41", default-features = false, features = [
 alloy-rpc-types = "1.0.42"
 alloy-sol-types = { version = "1.4.0", features = ["json"] }
 alloy-transport = { version = "1.0.41", default-features = false }
+async-trait = "0.1"
 bon = "3.8.1"
 reqwest = { version = "0.12.23", features = ["json"] }
 serde = { version = "1.0.228", features = ["derive"] }
@@ -35,6 +36,9 @@ serde_json = "1.0.145"
 thiserror = "2.0.17"
 tokio = { version = "1", default-features = false, features = ["time"] }
 tracing = "0.1.41"
+
+[features]
+test-utils = []
 
 [dev-dependencies]
 rstest = "0.26"

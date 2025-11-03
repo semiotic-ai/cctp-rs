@@ -7,7 +7,8 @@
 use alloy_chains::NamedChain;
 use alloy_primitives::Address;
 use alloy_provider::ProviderBuilder;
-use cctp_rs::{Cctp, CctpError, CctpV1};
+use cctp_rs::providers::{AlloyProvider, IrisAttestationProvider, TokioClock};
+use cctp_rs::{Cctp, CctpError, CctpV1, UniversalReceiptAdapter};
 use std::str::FromStr;
 
 #[tokio::main]
@@ -37,8 +38,11 @@ async fn main() -> Result<(), CctpError> {
     let bridge = Cctp::builder()
         .source_chain(NamedChain::Mainnet)
         .destination_chain(NamedChain::Arbitrum)
-        .source_provider(eth_provider)
-        .destination_provider(arb_provider)
+        .source_provider(AlloyProvider::new(eth_provider))
+        .destination_provider(AlloyProvider::new(arb_provider))
+        .attestation_provider(IrisAttestationProvider::production())
+        .clock(TokioClock::new())
+        .receipt_adapter(UniversalReceiptAdapter)
         .recipient(recipient)
         .build();
 

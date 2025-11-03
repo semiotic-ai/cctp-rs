@@ -1,16 +1,17 @@
+//! CCTP v1 bridge implementation with trait-based abstraction.
+
 use crate::error::{CctpError, Result};
+use crate::receipt_adapter::ReceiptAdapter;
+use crate::traits::{AttestationProvider, BlockchainProvider, Clock};
+use crate::{AttestationBytes, AttestationResponse, AttestationStatus, CctpV1};
 use alloy_chains::NamedChain;
-use alloy_network::Ethereum;
-use alloy_primitives::{hex, Address, FixedBytes, TxHash, U256};
-use alloy_provider::Provider;
+use alloy_network::Network;
+use alloy_primitives::{hex, keccak256, Address, FixedBytes, TxHash, U256};
+use alloy_rpc_types::Log;
 use alloy_sol_types::SolEvent;
 use bon::Builder;
-use reqwest::{Client, Response};
 use std::time::Duration;
-use tokio::time::sleep;
 use tracing::{debug, error, info, instrument, trace, Level};
-
-use crate::{AttestationBytes, AttestationResponse, AttestationStatus, CctpV1};
 
 use super::MessageTransmitter::MessageSent;
 
@@ -44,38 +45,101 @@ pub fn get_chain_confirmation_config(chain: &NamedChain) -> (u64, Duration) {
         .unwrap_or((1, DEFAULT_CONFIRMATION_TIMEOUT))
 }
 
-/// CCTP v1 bridge implementation
+/// CCTP v1 bridge implementation with trait-based abstraction.
 ///
 /// This struct provides the core functionality for bridging USDC across chains
-/// using Circle's Cross-Chain Transfer Protocol (CCTP).
+/// using Circle's Cross-Chain Transfer Protocol (CCTP). It is generic over:
 ///
-/// # Example
+/// - `SN`: Source network type (e.g., `Ethereum`, `Optimism`)
+/// - `DN`: Destination network type
+/// - `SP`: Source blockchain provider
+/// - `DP`: Destination blockchain provider
+/// - `A`: Attestation provider
+/// - `C`: Clock for time operations
+///
+/// This design enables comprehensive testing by allowing fake implementations
+/// of all external I/O operations.
+///
+/// # Examples
+///
+/// ## Production Usage
 ///
 /// ```rust,no_run
-/// # use cctp_rs::{Cctp, CctpError};
+/// # use cctp_rs::{Cctp, CctpError, UniversalReceiptAdapter};
+/// # use cctp_rs::providers::{AlloyProvider, IrisAttestationProvider, TokioClock};
 /// # use alloy_chains::NamedChain;
+/// # use alloy_network::Ethereum;
 /// # use alloy_provider::ProviderBuilder;
 /// # async fn example() -> Result<(), CctpError> {
+/// let eth_provider = ProviderBuilder::new().on_builtin("http://localhost:8545").await?;
+/// let arb_provider = ProviderBuilder::new().on_builtin("http://localhost:8546").await?;
+///
 /// let bridge = Cctp::builder()
 ///     .source_chain(NamedChain::Mainnet)
 ///     .destination_chain(NamedChain::Arbitrum)
-///     .source_provider(ProviderBuilder::new().on_builtin("http://localhost:8545").await?)
-///     .destination_provider(ProviderBuilder::new().on_builtin("http://localhost:8546").await?)
-///     .recipient("0x...".parse()?)
+///     .source_provider(AlloyProvider::new(eth_provider))
+///     .destination_provider(AlloyProvider::new(arb_provider))
+///     .attestation_provider(IrisAttestationProvider::production())
+///     .clock(TokioClock::new())
+///     .receipt_adapter(UniversalReceiptAdapter)
+///     .recipient("0x742d35Cc6634C0532925a3b844Bc9e7595f8fA0d".parse()?)
 ///     .build();
 /// # Ok(())
 /// # }
 /// ```
+///
+/// ## Testing with Fakes
+///
+/// ```rust,ignore
+/// let fake_blockchain = FakeBlockchainProvider::new();
+/// let fake_attestation = FakeAttestationProvider::new();
+/// let fake_clock = FakeClock::new();
+///
+/// let bridge = Cctp::builder()
+///     .source_chain(NamedChain::Mainnet)
+///     .destination_chain(NamedChain::Arbitrum)
+///     .source_provider(fake_blockchain.clone())
+///     .destination_provider(fake_blockchain)
+///     .attestation_provider(fake_attestation)
+///     .clock(fake_clock)
+///     .recipient(Address::ZERO)
+///     .build();
+/// ```
 #[derive(Builder, Clone, Debug)]
-pub struct Cctp<P: Provider<Ethereum> + Clone> {
-    source_provider: P,
-    destination_provider: P,
+pub struct Cctp<SN, DN, SP, DP, A, C, RA>
+where
+    SN: Network,
+    DN: Network,
+    SP: BlockchainProvider<SN>,
+    DP: BlockchainProvider<DN>,
+    A: AttestationProvider,
+    C: Clock,
+    RA: ReceiptAdapter<SN>,
+{
+    source_provider: SP,
+    destination_provider: DP,
+    attestation_provider: A,
+    clock: C,
+    receipt_adapter: RA,
     source_chain: NamedChain,
     destination_chain: NamedChain,
     recipient: Address,
+    #[builder(skip)]
+    _source_network: std::marker::PhantomData<SN>,
+    #[builder(skip)]
+    _destination_network: std::marker::PhantomData<DN>,
 }
 
-impl<P: Provider<Ethereum> + Clone> Cctp<P> {
+impl<SN, DN, SP, DP, A, C, RA> Cctp<SN, DN, SP, DP, A, C, RA>
+where
+    SN: Network,
+    DN: Network,
+    SP: BlockchainProvider<SN>,
+    DP: BlockchainProvider<DN>,
+    A: AttestationProvider,
+    C: Clock,
+    RA: ReceiptAdapter<SN>,
+{
     /// Returns the CCTP API URL for the current environment
     pub fn api_url(&self) -> &'static str {
         if self.source_chain.is_testnet() {
@@ -101,21 +165,35 @@ impl<P: Provider<Ethereum> + Clone> Cctp<P> {
     }
 
     /// Returns the source provider
-    pub fn source_provider(&self) -> &P {
+    pub fn source_provider(&self) -> &SP {
         &self.source_provider
     }
 
     /// Returns the destination provider
-    pub fn destination_provider(&self) -> &P {
+    pub fn destination_provider(&self) -> &DP {
         &self.destination_provider
     }
 
-    /// Returns the CCTP token messenger contract, the address of the contract that handles the deposit and burn of USDC
+    /// Returns the attestation provider
+    pub fn attestation_provider(&self) -> &A {
+        &self.attestation_provider
+    }
+
+    /// Returns the clock
+    pub fn clock(&self) -> &C {
+        &self.clock
+    }
+
+    /// Returns the CCTP token messenger contract address
+    ///
+    /// This is the address of the contract that handles the deposit and burn of USDC
     pub fn token_messenger_contract(&self) -> Result<Address> {
         self.source_chain.token_messenger_address()
     }
 
-    /// Returns the CCTP message transmitter contract, the address of the contract that handles the receipt of messages
+    /// Returns the CCTP message transmitter contract address
+    ///
+    /// This is the address of the contract that handles the receipt of messages
     pub fn message_transmitter_contract(&self) -> Result<Address> {
         self.destination_chain.message_transmitter_address()
     }
@@ -142,6 +220,14 @@ impl<P: Provider<Ethereum> + Clone> Cctp<P> {
         )
     }
 
+    /// Constructs the Iris API URL for a given message hash (v1 endpoint)
+    ///
+    /// See <https://developers.circle.com/stablecoins/cctp-apis>
+    pub fn create_url(&self, message_hash: FixedBytes<32>) -> String {
+        let base_url = self.api_url();
+        format!("{base_url}/v1/attestations/{message_hash}")
+    }
+
     /// Gets the `MessageSent` event data from a CCTP bridge transaction
     ///
     /// # Arguments
@@ -165,35 +251,13 @@ impl<P: Provider<Ethereum> + Clone> Cctp<P> {
             .await?;
 
         if let Some(tx_receipt) = tx_receipt {
-            // Calculate the event topic by hashing the event signature
-            let message_sent_topic = alloy_primitives::keccak256(b"MessageSent(bytes)");
-
-            let message_sent_log = tx_receipt
-                .inner
-                .logs()
-                .iter()
-                .find(|log| {
-                    log.topics()
-                        .first()
-                        .is_some_and(|topic| topic.as_slice() == message_sent_topic)
-                })
-                .ok_or_else(|| {
-                    error!(
-                        tx_hash = %tx_hash,
-                        source_chain = %self.source_chain,
-                        available_logs = tx_receipt.inner.logs().len(),
-                        event = "message_sent_event_not_found"
-                    );
-                    CctpError::TransactionFailed {
-                        reason: "MessageSent event not found".to_string(),
-                    }
-                })?;
+            let message_sent_log = self.find_message_sent_log(&tx_receipt, tx_hash)?;
 
             // Decode the log data using the generated event bindings
             let decoded = MessageSent::abi_decode_data(&message_sent_log.data().data)?;
 
             let message_sent_event = decoded.0.to_vec();
-            let message_hash = alloy_primitives::keccak256(&message_sent_event);
+            let message_hash = keccak256(&message_sent_event);
 
             info!(
                 tx_hash = %tx_hash,
@@ -209,13 +273,48 @@ impl<P: Provider<Ethereum> + Clone> Cctp<P> {
                 source_chain = %self.source_chain,
                 event = "transaction_not_found"
             );
-            return Err(CctpError::TransactionFailed {
+            Err(CctpError::TransactionFailed {
                 reason: "Transaction not found".to_string(),
-            });
+            })
         }
     }
 
-    /// Gets the attestation for a message hash from the CCTP API
+    /// Finds the MessageSent log in a transaction receipt using the receipt adapter
+    fn find_message_sent_log(
+        &self,
+        tx_receipt: &SN::ReceiptResponse,
+        tx_hash: TxHash,
+    ) -> Result<Log> {
+        // Calculate the event topic by hashing the event signature
+        let message_sent_topic = keccak256(b"MessageSent(bytes)");
+
+        // Use the receipt adapter to get logs in a network-agnostic way
+        let logs = self.receipt_adapter.logs(tx_receipt);
+
+        logs.iter()
+            .find(|log| {
+                log.topics()
+                    .first()
+                    .is_some_and(|topic| topic.as_slice() == message_sent_topic)
+            })
+            .cloned()
+            .ok_or_else(|| {
+                error!(
+                    tx_hash = %tx_hash,
+                    source_chain = %self.source_chain,
+                    available_logs = logs.len(),
+                    event = "message_sent_event_not_found"
+                );
+                CctpError::TransactionFailed {
+                    reason: "MessageSent event not found".to_string(),
+                }
+            })
+    }
+
+    /// Gets the attestation for a message hash from the CCTP API with retry logic
+    ///
+    /// This method polls the attestation provider until the attestation is complete,
+    /// failed, or the maximum number of attempts is reached.
     ///
     /// # Arguments
     ///
@@ -226,23 +325,28 @@ impl<P: Provider<Ethereum> + Clone> Cctp<P> {
     /// # Returns
     ///
     /// The attestation bytes if successful
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - The attestation fails
+    /// - The maximum number of attempts is reached (timeout)
+    /// - The attestation provider returns an error
     pub async fn get_attestation_with_retry(
         &self,
         message_hash: FixedBytes<32>,
         max_attempts: Option<u32>,
         poll_interval: Option<u64>,
     ) -> Result<AttestationBytes> {
-        let client = Client::new();
         let max_attempts = max_attempts.unwrap_or(30);
         let poll_interval = poll_interval.unwrap_or(60);
-
-        let url = self.create_url(message_hash);
+        let mut consecutive_errors = 0;
+        const MAX_CONSECUTIVE_ERRORS: u32 = 5;
 
         info!(
             source_chain = %self.source_chain,
             destination_chain = %self.destination_chain,
             message_hash = %hex::encode(message_hash),
-            url = %url,
             max_attempts = max_attempts,
             poll_interval_secs = poll_interval,
             event = "attestation_polling_started"
@@ -254,110 +358,91 @@ impl<P: Provider<Ethereum> + Clone> Cctp<P> {
                 max_attempts = max_attempts,
                 event = "attestation_attempt"
             );
-            let response = self.get_attestation(&client, &url).await?;
-            trace!(
-                status_code = %response.status(),
-                event = "attestation_response_received"
-            );
 
-            trace!(
-                status_code = %response.status(),
-                event = "checking_response_status"
-            );
-
-            // Handle rate limiting
-            if response.status() == reqwest::StatusCode::TOO_MANY_REQUESTS {
-                let secs = 5 * 60;
-                debug!(
-                    source_chain = %self.source_chain,
-                    destination_chain = %self.destination_chain,
-                    sleep_secs = secs,
-                    event = "rate_limit_exceeded"
-                );
-                sleep(Duration::from_secs(secs)).await;
-                continue;
-            }
-
-            // Handle 404 status - treat as pending since the attestation likely doesn't exist yet
-            if response.status() == reqwest::StatusCode::NOT_FOUND {
-                debug!(
-                    source_chain = %self.source_chain,
-                    destination_chain = %self.destination_chain,
-                    attempt = attempt,
-                    max_attempts = max_attempts,
-                    poll_interval_secs = poll_interval,
-                    event = "attestation_not_found"
-                );
-                sleep(Duration::from_secs(poll_interval)).await;
-                continue;
-            }
-
-            // Ensure the response status is successful before trying to parse JSON
-            response.error_for_status_ref()?;
-
-            let attestation: AttestationResponse = match response.json::<serde_json::Value>().await
+            match self
+                .attestation_provider
+                .get_attestation(message_hash)
+                .await
             {
-                Ok(attestation) => serde_json::from_value(attestation)?,
+                Ok(attestation) => {
+                    consecutive_errors = 0;
+                    match attestation.status {
+                        AttestationStatus::Complete => {
+                            return self.handle_complete_attestation(
+                                attestation,
+                                attempt,
+                                message_hash,
+                            );
+                        }
+                        AttestationStatus::Failed => {
+                            return self.handle_failed_attestation(attempt, message_hash);
+                        }
+                        AttestationStatus::Pending | AttestationStatus::PendingConfirmations => {
+                            self.handle_pending_attestation(attempt, max_attempts, poll_interval)
+                                .await;
+                        }
+                    }
+                }
                 Err(e) => {
+                    match e {
+                        CctpError::RateLimitExceeded {
+                            retry_after_seconds,
+                        } => {
+                            consecutive_errors = 0;
+                            debug!(
+                                source_chain = %self.source_chain,
+                                destination_chain = %self.destination_chain,
+                                retry_after_seconds = retry_after_seconds,
+                                event = "rate_limit_exceeded"
+                            );
+                            self.clock
+                                .sleep(Duration::from_secs(retry_after_seconds))
+                                .await;
+                            continue;
+                        }
+                        CctpError::AttestationNotFound => {
+                            consecutive_errors = 0;
+                            debug!(
+                                source_chain = %self.source_chain,
+                                destination_chain = %self.destination_chain,
+                                attempt = attempt,
+                                max_attempts = max_attempts,
+                                poll_interval_secs = poll_interval,
+                                event = "attestation_not_found"
+                            );
+                            self.clock.sleep(Duration::from_secs(poll_interval)).await;
+                            continue;
+                        }
+                        _ => {}
+                    }
+
+                    // For other errors, increment consecutive error counter
+                    consecutive_errors += 1;
                     error!(
                         source_chain = %self.source_chain,
                         destination_chain = %self.destination_chain,
                         error = %e,
                         attempt = attempt,
-                        event = "attestation_decode_failed"
+                        consecutive_errors = consecutive_errors,
+                        event = "attestation_request_failed"
                     );
-                    continue;
-                }
-            };
 
-            match attestation.status {
-                AttestationStatus::Complete => {
-                    let attestation_bytes =
-                        attestation
-                            .attestation
-                            .ok_or_else(|| CctpError::AttestationFailed {
-                                reason: "Attestation missing".to_string(),
-                            })?;
+                    if consecutive_errors >= MAX_CONSECUTIVE_ERRORS {
+                        error!(
+                            source_chain = %self.source_chain,
+                            destination_chain = %self.destination_chain,
+                            consecutive_errors = consecutive_errors,
+                            event = "circuit_breaker_triggered"
+                        );
+                        return Err(CctpError::AttestationFailed {
+                            reason: format!(
+                                "Circuit breaker triggered after {} consecutive errors: {}",
+                                consecutive_errors, e
+                            ),
+                        });
+                    }
 
-                    // Remove '0x' prefix if present and decode hex
-                    let attestation_bytes =
-                        if let Some(stripped) = attestation_bytes.strip_prefix("0x") {
-                            hex::decode(stripped)
-                        } else {
-                            hex::decode(&attestation_bytes)
-                        }?;
-
-                    info!(
-                        source_chain = %self.source_chain,
-                        destination_chain = %self.destination_chain,
-                        attempt = attempt,
-                        attestation_length_bytes = attestation_bytes.len(),
-                        event = "attestation_complete"
-                    );
-                    return Ok(attestation_bytes);
-                }
-                AttestationStatus::Failed => {
-                    error!(
-                        source_chain = %self.source_chain,
-                        destination_chain = %self.destination_chain,
-                        message_hash = %hex::encode(message_hash),
-                        attempt = attempt,
-                        event = "attestation_failed"
-                    );
-                    return Err(CctpError::AttestationFailed {
-                        reason: "Attestation failed".to_string(),
-                    });
-                }
-                AttestationStatus::Pending | AttestationStatus::PendingConfirmations => {
-                    debug!(
-                        source_chain = %self.source_chain,
-                        destination_chain = %self.destination_chain,
-                        attempt = attempt,
-                        max_attempts = max_attempts,
-                        poll_interval_secs = poll_interval,
-                        event = "attestation_pending"
-                    );
-                    sleep(Duration::from_secs(poll_interval)).await;
+                    self.clock.sleep(Duration::from_secs(poll_interval)).await;
                 }
             }
         }
@@ -373,21 +458,68 @@ impl<P: Provider<Ethereum> + Clone> Cctp<P> {
         Err(CctpError::AttestationTimeout)
     }
 
-    /// See <https://developers.circle.com/stablecoins/cctp-apis>
-    pub fn create_url(&self, message_hash: FixedBytes<32>) -> String {
-        let base_url = self.api_url();
-        format!("{base_url}/v1/attestations/{message_hash}")
+    fn handle_complete_attestation(
+        &self,
+        attestation: AttestationResponse,
+        attempt: u32,
+        _message_hash: FixedBytes<32>,
+    ) -> Result<AttestationBytes> {
+        let attestation_bytes =
+            attestation
+                .attestation
+                .ok_or_else(|| CctpError::AttestationFailed {
+                    reason: "Attestation missing".to_string(),
+                })?;
+
+        // Remove '0x' prefix if present and decode hex
+        let attestation_bytes = if let Some(stripped) = attestation_bytes.strip_prefix("0x") {
+            hex::decode(stripped)
+        } else {
+            hex::decode(&attestation_bytes)
+        }?;
+
+        info!(
+            source_chain = %self.source_chain,
+            destination_chain = %self.destination_chain,
+            attempt = attempt,
+            attestation_length_bytes = attestation_bytes.len(),
+            event = "attestation_complete"
+        );
+        Ok(attestation_bytes)
     }
 
-    /// Gets the attestation for a message hash from the CCTP API
-    ///
-    /// # Arguments
-    ///
-    /// * `client`: The HTTP client to use
-    /// * `url`: The URL to get the attestation from
-    ///
-    pub async fn get_attestation(&self, client: &Client, url: &str) -> Result<Response> {
-        client.get(url).send().await.map_err(CctpError::Network)
+    fn handle_failed_attestation(
+        &self,
+        attempt: u32,
+        message_hash: FixedBytes<32>,
+    ) -> Result<AttestationBytes> {
+        error!(
+            source_chain = %self.source_chain,
+            destination_chain = %self.destination_chain,
+            message_hash = %hex::encode(message_hash),
+            attempt = attempt,
+            event = "attestation_failed"
+        );
+        Err(CctpError::AttestationFailed {
+            reason: "Attestation failed".to_string(),
+        })
+    }
+
+    async fn handle_pending_attestation(
+        &self,
+        attempt: u32,
+        max_attempts: u32,
+        poll_interval: u64,
+    ) {
+        debug!(
+            source_chain = %self.source_chain,
+            destination_chain = %self.destination_chain,
+            attempt = attempt,
+            max_attempts = max_attempts,
+            poll_interval_secs = poll_interval,
+            event = "attestation_pending"
+        );
+        self.clock.sleep(Duration::from_secs(poll_interval)).await;
     }
 }
 

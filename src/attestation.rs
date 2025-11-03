@@ -7,7 +7,7 @@ pub type AttestationBytes = Vec<u8>;
 ///
 /// It contains the status of the attestation and optionally the attestation data itself.
 /// The attestation data is a base64 encoded string that can be decoded into bytes.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AttestationResponse {
     pub status: AttestationStatus,
@@ -16,7 +16,7 @@ pub struct AttestationResponse {
 }
 
 /// Represents the status of the attestation.
-#[derive(Debug, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum AttestationStatus {
     Complete,

@@ -1077,7 +1077,7 @@ dependencies = [
 
 [[package]]
 name = "cctp-rs"
-version = "0.5.1"
+version = "2.0.0"
 dependencies = [
  "alloy-chains",
  "alloy-contract",
@@ -1089,6 +1089,7 @@ dependencies = [
  "alloy-rpc-types",
  "alloy-sol-types",
  "alloy-transport",
+ "async-trait",
  "bon",
  "reqwest",
  "rstest",

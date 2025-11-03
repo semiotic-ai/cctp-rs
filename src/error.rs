@@ -17,6 +17,12 @@ pub enum CctpError {
     #[error("Attestation failed: {reason}")]
     AttestationFailed { reason: String },
 
+    #[error("Rate limit exceeded, retry after {retry_after_seconds} seconds")]
+    RateLimitExceeded { retry_after_seconds: u64 },
+
+    #[error("Attestation not found (will retry)")]
+    AttestationNotFound,
+
     #[error("Transaction failed: {reason}")]
     TransactionFailed { reason: String },
 

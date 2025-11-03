@@ -151,7 +151,10 @@ impl<P: Provider<Ethereum> + Clone> Cctp<P> {
     /// # Returns
     ///
     /// Returns the message bytes and its hash
-    #[instrument(skip(self), level = Level::INFO)]
+    #[instrument(skip(self), level = Level::INFO, fields(
+        source_chain = %self.source_chain,
+        destination_chain = %self.destination_chain,
+    ))]
     pub async fn get_message_sent_event(
         &self,
         tx_hash: TxHash,
@@ -174,8 +177,16 @@ impl<P: Provider<Ethereum> + Clone> Cctp<P> {
                         .first()
                         .is_some_and(|topic| topic.as_slice() == message_sent_topic)
                 })
-                .ok_or_else(|| CctpError::TransactionFailed {
-                    reason: "MessageSent event not found".to_string(),
+                .ok_or_else(|| {
+                    error!(
+                        tx_hash = %tx_hash,
+                        source_chain = %self.source_chain,
+                        available_logs = tx_receipt.inner.logs().len(),
+                        event = "message_sent_event_not_found"
+                    );
+                    CctpError::TransactionFailed {
+                        reason: "MessageSent event not found".to_string(),
+                    }
                 })?;
 
             // Decode the log data using the generated event bindings
@@ -184,8 +195,20 @@ impl<P: Provider<Ethereum> + Clone> Cctp<P> {
             let message_sent_event = decoded.0.to_vec();
             let message_hash = alloy_primitives::keccak256(&message_sent_event);
 
+            info!(
+                tx_hash = %tx_hash,
+                message_hash = %hex::encode(message_hash),
+                message_length_bytes = message_sent_event.len(),
+                event = "message_sent_event_extracted"
+            );
+
             Ok((message_sent_event, message_hash))
         } else {
+            error!(
+                tx_hash = %tx_hash,
+                source_chain = %self.source_chain,
+                event = "transaction_not_found"
+            );
             return Err(CctpError::TransactionFailed {
                 reason: "Transaction not found".to_string(),
             });
@@ -213,16 +236,16 @@ impl<P: Provider<Ethereum> + Clone> Cctp<P> {
         let max_attempts = max_attempts.unwrap_or(30);
         let poll_interval = poll_interval.unwrap_or(60);
 
-        info!(
-            message_hash = %hex::encode(message_hash),
-            event = "attestation_polling_started"
-        );
-
         let url = self.create_url(message_hash);
 
         info!(
+            source_chain = %self.source_chain,
+            destination_chain = %self.destination_chain,
+            message_hash = %hex::encode(message_hash),
             url = %url,
-            event = "attestation_url_created"
+            max_attempts = max_attempts,
+            poll_interval_secs = poll_interval,
+            event = "attestation_polling_started"
         );
 
         for attempt in 1..=max_attempts {
@@ -245,7 +268,12 @@ impl<P: Provider<Ethereum> + Clone> Cctp<P> {
             // Handle rate limiting
             if response.status() == reqwest::StatusCode::TOO_MANY_REQUESTS {
                 let secs = 5 * 60;
-                debug!(sleep_secs = secs, event = "rate_limit_exceeded");
+                debug!(
+                    source_chain = %self.source_chain,
+                    destination_chain = %self.destination_chain,
+                    sleep_secs = secs,
+                    event = "rate_limit_exceeded"
+                );
                 sleep(Duration::from_secs(secs)).await;
                 continue;
             }
@@ -253,6 +281,8 @@ impl<P: Provider<Ethereum> + Clone> Cctp<P> {
             // Handle 404 status - treat as pending since the attestation likely doesn't exist yet
             if response.status() == reqwest::StatusCode::NOT_FOUND {
                 debug!(
+                    source_chain = %self.source_chain,
+                    destination_chain = %self.destination_chain,
                     attempt = attempt,
                     max_attempts = max_attempts,
                     poll_interval_secs = poll_interval,
@@ -265,20 +295,15 @@ impl<P: Provider<Ethereum> + Clone> Cctp<P> {
             // Ensure the response status is successful before trying to parse JSON
             response.error_for_status_ref()?;
 
-            debug!(event = "decoding_attestation_response");
-
             let attestation: AttestationResponse = match response.json::<serde_json::Value>().await
             {
-                Ok(attestation) => {
-                    debug!(
-                        attestation = ?attestation,
-                        event = "attestation_decoded"
-                    );
-                    serde_json::from_value(attestation)?
-                }
+                Ok(attestation) => serde_json::from_value(attestation)?,
                 Err(e) => {
                     error!(
+                        source_chain = %self.source_chain,
+                        destination_chain = %self.destination_chain,
                         error = %e,
+                        attempt = attempt,
                         event = "attestation_decode_failed"
                     );
                     continue;
@@ -302,16 +327,31 @@ impl<P: Provider<Ethereum> + Clone> Cctp<P> {
                             hex::decode(&attestation_bytes)
                         }?;
 
-                    debug!(event = "attestation_received_successfully");
+                    info!(
+                        source_chain = %self.source_chain,
+                        destination_chain = %self.destination_chain,
+                        attempt = attempt,
+                        attestation_length_bytes = attestation_bytes.len(),
+                        event = "attestation_complete"
+                    );
                     return Ok(attestation_bytes);
                 }
                 AttestationStatus::Failed => {
+                    error!(
+                        source_chain = %self.source_chain,
+                        destination_chain = %self.destination_chain,
+                        message_hash = %hex::encode(message_hash),
+                        attempt = attempt,
+                        event = "attestation_failed"
+                    );
                     return Err(CctpError::AttestationFailed {
                         reason: "Attestation failed".to_string(),
                     });
                 }
                 AttestationStatus::Pending | AttestationStatus::PendingConfirmations => {
                     debug!(
+                        source_chain = %self.source_chain,
+                        destination_chain = %self.destination_chain,
                         attempt = attempt,
                         max_attempts = max_attempts,
                         poll_interval_secs = poll_interval,
@@ -322,6 +362,14 @@ impl<P: Provider<Ethereum> + Clone> Cctp<P> {
             }
         }
 
+        error!(
+            source_chain = %self.source_chain,
+            destination_chain = %self.destination_chain,
+            message_hash = %hex::encode(message_hash),
+            max_attempts = max_attempts,
+            total_duration_secs = max_attempts as u64 * poll_interval,
+            event = "attestation_timeout"
+        );
         Err(CctpError::AttestationTimeout)
     }
 

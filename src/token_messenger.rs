@@ -6,6 +6,7 @@ use alloy_primitives::{address, Address, U256};
 use alloy_provider::Provider;
 use alloy_rpc_types::TransactionRequest;
 use alloy_sol_types::sol;
+use tracing::{debug, info};
 use TokenMessenger::{depositForBurnCall, TokenMessengerInstance};
 
 /// <https://developers.circle.com/stablecoins/evm-smart-contracts>
@@ -47,6 +48,10 @@ pub struct TokenMessengerContract<P: Provider<Ethereum>> {
 impl<P: Provider<Ethereum>> TokenMessengerContract<P> {
     /// Create a new TokenMessengerContract.
     pub fn new(address: Address, provider: P) -> Self {
+        debug!(
+            contract_address = %address,
+            event = "token_messenger_contract_initialized"
+        );
         Self {
             instance: TokenMessengerInstance::new(address, provider),
         }
@@ -84,6 +89,15 @@ impl<P: Provider<Ethereum>> TokenMessengerContract<P> {
         token_address: Address,
         amount: U256,
     ) -> TransactionRequest {
+        info!(
+            from_address = %from_address,
+            recipient = %recipient,
+            destination_domain = destination_domain,
+            token_address = %token_address,
+            amount = %amount,
+            contract_address = %self.instance.address(),
+            event = "deposit_for_burn_transaction_created"
+        );
         self.deposit_for_burn_call_builder(
             from_address,
             recipient,

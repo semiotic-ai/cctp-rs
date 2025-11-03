@@ -1,5 +1,6 @@
 use alloy_chains::NamedChain;
 use alloy_primitives::Address;
+use tracing::error;
 
 use crate::error::{CctpError, Result};
 
@@ -43,9 +44,16 @@ impl CctpV1 for NamedChain {
             // Testnets
             Sepolia => Ok(60),
             ArbitrumSepolia | AvalancheFuji | BaseSepolia | OptimismSepolia | PolygonAmoy => Ok(20),
-            _ => Err(CctpError::ChainNotSupported {
-                chain: self.to_string(),
-            }),
+            _ => {
+                error!(
+                    chain = %self.to_string(),
+                    operation = "get_confirmation_time",
+                    event = "chain_not_supported"
+                );
+                Err(CctpError::ChainNotSupported {
+                    chain: self.to_string(),
+                })
+            }
         }
     }
 
@@ -60,9 +68,16 @@ impl CctpV1 for NamedChain {
             Optimism => Ok(OPTIMISM_DOMAIN_ID),
             Polygon => Ok(POLYGON_DOMAIN_ID),
             Unichain => Ok(UNICHAIN_DOMAIN_ID),
-            _ => Err(CctpError::ChainNotSupported {
-                chain: self.to_string(),
-            }),
+            _ => {
+                error!(
+                    chain = %self.to_string(),
+                    operation = "get_domain_id",
+                    event = "chain_not_supported"
+                );
+                Err(CctpError::ChainNotSupported {
+                    chain: self.to_string(),
+                })
+            }
         }
     }
 
@@ -80,9 +95,16 @@ impl CctpV1 for NamedChain {
             Optimism => Ok(OPTIMISM_TOKEN_MESSENGER_ADDRESS),
             Polygon => Ok(POLYGON_CCTP_V1_TOKEN_MESSENGER),
             Unichain => Ok(UNICHAIN_CCTP_V1_TOKEN_MESSENGER),
-            _ => Err(CctpError::ChainNotSupported {
-                chain: self.to_string(),
-            }),
+            _ => {
+                error!(
+                    chain = %self.to_string(),
+                    operation = "get_token_messenger_address",
+                    event = "chain_not_supported"
+                );
+                Err(CctpError::ChainNotSupported {
+                    chain: self.to_string(),
+                })
+            }
         }
     }
 
@@ -101,9 +123,16 @@ impl CctpV1 for NamedChain {
             BaseSepolia => Ok(BASE_SEPOLIA_MESSAGE_TRANSMITTER_ADDRESS),
             Sepolia => Ok(ETHEREUM_SEPOLIA_MESSAGE_TRANSMITTER_ADDRESS),
             Unichain => Ok(UNICHAIN_CCTP_V1_MESSAGE_TRANSMITTER),
-            _ => Err(CctpError::ChainNotSupported {
-                chain: self.to_string(),
-            }),
+            _ => {
+                error!(
+                    chain = %self.to_string(),
+                    operation = "get_message_transmitter_address",
+                    event = "chain_not_supported"
+                );
+                Err(CctpError::ChainNotSupported {
+                    chain: self.to_string(),
+                })
+            }
         }
     }
 

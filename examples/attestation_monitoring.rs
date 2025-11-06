@@ -6,7 +6,7 @@
 
 use alloy_chains::NamedChain;
 use alloy_network::Ethereum;
-use alloy_primitives::{FixedBytes, TxHash};
+use alloy_primitives::{hex, Bytes, FixedBytes, TxHash};
 use alloy_provider::{Provider, ProviderBuilder};
 use cctp_rs::{AttestationResponse, AttestationStatus, Cctp, CctpError};
 use std::time::Duration;
@@ -111,14 +111,14 @@ async fn simulate_attestation_monitoring(_bridge: &Cctp<impl Provider<Ethereum> 
                 // Show example attestation response
                 let example_response = AttestationResponse {
                     status: AttestationStatus::Complete,
-                    attestation: Some("0xabcdef...".to_string()),
+                    attestation: Some(Bytes::from_static(b"\xab\xcd\xef")),
                 };
 
                 println!("\n   📄 Example attestation response:");
                 println!("      Status: {:?}", example_response.status);
                 println!(
-                    "      Attestation: {}",
-                    example_response.attestation.as_ref().unwrap()
+                    "      Attestation: 0x{}",
+                    hex::encode(example_response.attestation.as_ref().unwrap())
                 );
             }
             AttestationStatus::Failed => {

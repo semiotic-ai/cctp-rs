@@ -311,20 +311,12 @@ impl<P: Provider<Ethereum> + Clone> Cctp<P> {
 
             match attestation.status {
                 AttestationStatus::Complete => {
-                    let attestation_bytes =
-                        attestation
-                            .attestation
-                            .ok_or_else(|| CctpError::AttestationFailed {
-                                reason: "Attestation missing".to_string(),
-                            })?;
-
-                    // Remove '0x' prefix if present and decode hex
-                    let attestation_bytes =
-                        if let Some(stripped) = attestation_bytes.strip_prefix("0x") {
-                            hex::decode(stripped)
-                        } else {
-                            hex::decode(&attestation_bytes)
-                        }?;
+                    let attestation_bytes = attestation
+                        .attestation
+                        .ok_or_else(|| CctpError::AttestationFailed {
+                            reason: "Attestation missing".to_string(),
+                        })?
+                        .to_vec();
 
                     info!(
                         source_chain = %self.source_chain,

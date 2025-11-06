@@ -9,6 +9,7 @@ use reqwest::{Client, Response};
 use std::time::Duration;
 use tokio::time::sleep;
 use tracing::{debug, error, info, instrument, trace, Level};
+use url::Url;
 
 use crate::{AttestationBytes, AttestationResponse, AttestationStatus, CctpV1};
 
@@ -77,11 +78,11 @@ pub struct Cctp<P: Provider<Ethereum> + Clone> {
 
 impl<P: Provider<Ethereum> + Clone> Cctp<P> {
     /// Returns the CCTP API URL for the current environment
-    pub fn api_url(&self) -> &'static str {
+    pub fn api_url(&self) -> Url {
         if self.source_chain.is_testnet() {
-            IRIS_API_SANDBOX
+            Url::parse(IRIS_API_SANDBOX).unwrap()
         } else {
-            IRIS_API
+            Url::parse(IRIS_API).unwrap()
         }
     }
 
@@ -134,12 +135,10 @@ impl<P: Provider<Ethereum> + Clone> Cctp<P> {
     /// # Returns
     ///
     /// The full URL to query the attestation status
-    pub fn iris_api_url(&self, message_hash: &FixedBytes<32>) -> String {
-        format!(
-            "{}/attestations/{}",
-            self.api_url(),
-            hex::encode(message_hash)
-        )
+    pub fn iris_api_url(&self, message_hash: &FixedBytes<32>) -> Url {
+        self.api_url()
+            .join(&format!("/v1/attestations/{}", hex::encode(message_hash)))
+            .unwrap()
     }
 
     /// Gets the `MessageSent` event data from a CCTP bridge transaction
@@ -374,9 +373,10 @@ impl<P: Provider<Ethereum> + Clone> Cctp<P> {
     }
 
     /// See <https://developers.circle.com/stablecoins/cctp-apis>
-    pub fn create_url(&self, message_hash: FixedBytes<32>) -> String {
-        let base_url = self.api_url();
-        format!("{base_url}/v1/attestations/{message_hash}")
+    pub fn create_url(&self, message_hash: FixedBytes<32>) -> Url {
+        self.api_url()
+            .join(&format!("/v1/attestations/{}", hex::encode(message_hash)))
+            .unwrap()
     }
 
     /// Gets the attestation for a message hash from the CCTP API
@@ -386,8 +386,12 @@ impl<P: Provider<Ethereum> + Clone> Cctp<P> {
     /// * `client`: The HTTP client to use
     /// * `url`: The URL to get the attestation from
     ///
-    pub async fn get_attestation(&self, client: &Client, url: &str) -> Result<Response> {
-        client.get(url).send().await.map_err(CctpError::Network)
+    pub async fn get_attestation(&self, client: &Client, url: &Url) -> Result<Response> {
+        client
+            .get(url.as_str())
+            .send()
+            .await
+            .map_err(CctpError::Network)
     }
 }
 

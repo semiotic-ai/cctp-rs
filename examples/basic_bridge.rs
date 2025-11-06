@@ -86,7 +86,10 @@ async fn main() -> Result<(), CctpError> {
     // Example of how to get attestation URL
     let example_message_hash = [0u8; 32].into();
     let attestation_url = bridge.iris_api_url(&example_message_hash);
-    println!("\n🔍 Attestation API endpoint: {attestation_url}");
+    println!(
+        "\n🔍 Attestation API endpoint: {}",
+        attestation_url.as_str()
+    );
 
     println!("\n✅ Bridge setup complete!");
     println!("\n⚠️  Note: This example shows the configuration only.");

@@ -55,7 +55,7 @@ async fn main() -> Result<(), CctpError> {
 
     // Demonstrate manual attestation checking
     let api_url = bridge.iris_api_url(&message_hash);
-    println!("\n🌐 Attestation API URL: {api_url}");
+    println!("\n🌐 Attestation API URL: {}", api_url.as_str());
 
     // Simulate attestation status monitoring
     simulate_attestation_monitoring(&bridge).await;

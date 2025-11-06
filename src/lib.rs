@@ -57,6 +57,7 @@ mod chain;
 mod domain_id;
 mod error;
 mod message_transmitter;
+mod spans;
 mod token_messenger;
 
 pub use attestation::*;

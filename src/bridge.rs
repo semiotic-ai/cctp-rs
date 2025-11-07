@@ -23,6 +23,9 @@ use super::MessageTransmitter::MessageSent;
 pub const IRIS_API: &str = "https://iris-api.circle.com";
 pub const IRIS_API_SANDBOX: &str = "https://iris-api-sandbox.circle.com";
 
+/// CCTP v1 attestation API path
+pub const ATTESTATION_PATH_V1: &str = "/v1/attestations/";
+
 /// Default confirmation requirements and timeouts for different chains
 pub const DEFAULT_CONFIRMATION_TIMEOUT: Duration = Duration::from_secs(180); // 3 minutes default
 pub const CHAIN_CONFIRMATION_CONFIG: &[(NamedChain, u64, Duration)] = &[
@@ -127,21 +130,6 @@ impl<P: Provider<Ethereum> + Clone> Cctp<P> {
         &self.recipient
     }
 
-    /// Constructs the Iris API URL for a given message hash
-    ///
-    /// # Arguments
-    ///
-    /// * `message_hash` - The message hash to query
-    ///
-    /// # Returns
-    ///
-    /// The full URL to query the attestation status
-    pub fn iris_api_url(&self, message_hash: &FixedBytes<32>) -> Url {
-        self.api_url()
-            .join(&format!("/v1/attestations/0x{}", hex::encode(message_hash)))
-            .unwrap()
-    }
-
     /// Gets the `MessageSent` event data from a CCTP bridge transaction
     ///
     /// # Arguments
@@ -238,7 +226,7 @@ impl<P: Provider<Ethereum> + Clone> Cctp<P> {
         let _guard = span.enter();
 
         let client = Client::new();
-        let url = self.create_url(message_hash);
+        let url = self.create_url(message_hash)?;
 
         info!(
             url = %url,
@@ -320,11 +308,43 @@ impl<P: Provider<Ethereum> + Clone> Cctp<P> {
         Err(CctpError::AttestationTimeout)
     }
 
+    /// Constructs the Iris API URL for attestation polling
+    ///
+    /// The message hash is formatted with the `0x` prefix as required by Circle's API.
+    /// This uses the `Display` implementation of `FixedBytes<32>` which automatically
+    /// includes the `0x` prefix.
+    ///
+    /// # Arguments
+    ///
+    /// * `message_hash` - The keccak256 hash of the MessageSent event bytes
+    ///
+    /// # Returns
+    ///
+    /// The attestation endpoint URL
+    ///
+    /// # Errors
+    ///
+    /// Returns `CctpError::InvalidUrl` if URL construction fails
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// # use cctp_rs::Cctp;
+    /// # use alloy_primitives::FixedBytes;
+    /// # fn example(bridge: &Cctp<impl alloy_provider::Provider<alloy_network::Ethereum> + Clone>) {
+    /// let hash = FixedBytes::from([0u8; 32]);
+    /// let url = bridge.create_url(hash).unwrap();
+    /// assert!(url.as_str().contains("/v1/attestations/0x"));
+    /// # }
+    /// ```
+    ///
     /// See <https://developers.circle.com/stablecoins/cctp-apis>
-    pub fn create_url(&self, message_hash: FixedBytes<32>) -> Url {
+    pub fn create_url(&self, message_hash: FixedBytes<32>) -> Result<Url> {
         self.api_url()
-            .join(&format!("/v1/attestations/0x{}", hex::encode(message_hash)))
-            .unwrap()
+            .join(&format!("{ATTESTATION_PATH_V1}{message_hash}"))
+            .map_err(|e| CctpError::InvalidUrl {
+                reason: format!("Failed to construct attestation URL: {e}"),
+            })
     }
 
     /// Gets the attestation for a message hash from the CCTP API
@@ -417,5 +437,115 @@ mod tests {
             result.unwrap_err(),
             CctpError::ChainNotSupported { .. }
         ));
+    }
+
+    #[rstest]
+    #[case(NamedChain::Mainnet, "mainnet")]
+    #[case(NamedChain::Sepolia, "sepolia")]
+    #[case(NamedChain::Arbitrum, "arbitrum")]
+    #[case(NamedChain::Base, "base")]
+    fn test_attestation_url_format(#[case] chain: NamedChain, #[case] snapshot_name: &str) {
+        use alloy_provider::ProviderBuilder;
+
+        // Create a mock bridge instance
+        let provider = ProviderBuilder::new().connect_anvil();
+        let bridge = Cctp::builder()
+            .source_chain(chain)
+            .destination_chain(NamedChain::Arbitrum)
+            .source_provider(provider.clone())
+            .destination_provider(provider)
+            .recipient(Address::ZERO)
+            .build();
+
+        // Test with a known hash (repeating pattern for easy visual verification)
+        let test_hash = FixedBytes::from([0x12; 32]);
+        let url = bridge.create_url(test_hash).unwrap();
+
+        // Inline snapshot test the full URL format
+        insta::with_settings!({snapshot_suffix => snapshot_name}, {
+            insta::assert_snapshot!(url.as_str());
+        });
+
+        // Verify basic invariants
+        let url_str = url.as_str();
+        assert!(
+            url_str.contains("/v1/attestations/0x"),
+            "URL must contain v1 path with 0x prefix"
+        );
+        assert_eq!(
+            url_str.matches("0x").count(),
+            1,
+            "URL should contain exactly one 0x prefix"
+        );
+    }
+
+    #[test]
+    fn test_attestation_url_hash_format_edge_cases() {
+        use alloy_provider::ProviderBuilder;
+
+        let provider = ProviderBuilder::new().connect_anvil();
+        let bridge = Cctp::builder()
+            .source_chain(NamedChain::Mainnet)
+            .destination_chain(NamedChain::Arbitrum)
+            .source_provider(provider.clone())
+            .destination_provider(provider)
+            .recipient(Address::ZERO)
+            .build();
+
+        // Test with all 0xff bytes
+        let hash_ff = FixedBytes::from([0xff; 32]);
+        let url_ff = bridge.create_url(hash_ff).unwrap();
+        insta::assert_snapshot!(url_ff.as_str(), @"https://iris-api.circle.com/v1/attestations/0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
+
+        // Test with all 0x00 bytes
+        let hash_00 = FixedBytes::from([0x00; 32]);
+        let url_00 = bridge.create_url(hash_00).unwrap();
+        insta::assert_snapshot!(url_00.as_str(), @"https://iris-api.circle.com/v1/attestations/0x0000000000000000000000000000000000000000000000000000000000000000");
+
+        // Test with mixed bytes
+        let mut mixed_bytes = [0u8; 32];
+        for (i, byte) in mixed_bytes.iter_mut().enumerate() {
+            *byte = i as u8;
+        }
+        let hash_mixed = FixedBytes::from(mixed_bytes);
+        let url_mixed = bridge.create_url(hash_mixed).unwrap();
+        insta::assert_snapshot!(url_mixed.as_str(), @"https://iris-api.circle.com/v1/attestations/0x000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f");
+    }
+
+    #[test]
+    fn test_attestation_url_uses_correct_environment() {
+        use alloy_provider::ProviderBuilder;
+
+        let provider = ProviderBuilder::new().connect_anvil();
+
+        // Mainnet should use production API
+        let mainnet_bridge = Cctp::builder()
+            .source_chain(NamedChain::Mainnet)
+            .destination_chain(NamedChain::Arbitrum)
+            .source_provider(provider.clone())
+            .destination_provider(provider.clone())
+            .recipient(Address::ZERO)
+            .build();
+
+        let mainnet_url = mainnet_bridge.create_url(FixedBytes::ZERO).unwrap();
+        assert!(
+            mainnet_url.as_str().starts_with(IRIS_API),
+            "Mainnet should use production Iris API"
+        );
+
+        // Testnet should use sandbox API
+        let testnet_bridge = Cctp::builder()
+            .source_chain(NamedChain::Sepolia)
+            .destination_chain(NamedChain::ArbitrumSepolia)
+            .source_provider(provider.clone())
+            .destination_provider(provider)
+            .recipient(Address::ZERO)
+            .build();
+
+        let testnet_url = testnet_bridge.create_url(FixedBytes::ZERO).unwrap();
+        assert!(
+            testnet_url.as_str().starts_with(IRIS_API_SANDBOX),
+            "Testnet should use sandbox Iris API"
+        );
     }
 }

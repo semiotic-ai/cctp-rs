@@ -54,7 +54,7 @@ async fn main() -> Result<(), CctpError> {
     println!("   Poll interval: 30 seconds");
 
     // Demonstrate manual attestation checking
-    let api_url = bridge.iris_api_url(&message_hash);
+    let api_url = bridge.create_url(message_hash)?;
     println!("\n🌐 Attestation API URL: {}", api_url.as_str());
 
     // Simulate attestation status monitoring

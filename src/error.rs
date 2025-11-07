@@ -26,6 +26,9 @@ pub enum CctpError {
     #[error("Timeout waiting for attestation")]
     AttestationTimeout,
 
+    #[error("Invalid URL: {reason}")]
+    InvalidUrl { reason: String },
+
     #[error("RPC error: {0}")]
     Rpc(#[from] alloy_json_rpc::RpcError<alloy_transport::TransportErrorKind>),
 

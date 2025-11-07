@@ -447,8 +447,9 @@ mod tests {
     fn test_attestation_url_format(#[case] chain: NamedChain, #[case] snapshot_name: &str) {
         use alloy_provider::ProviderBuilder;
 
-        // Create a mock bridge instance
-        let provider = ProviderBuilder::new().connect_anvil();
+        // Create a bridge instance with dummy HTTP provider (URL doesn't need to be valid for this test)
+        let provider =
+            ProviderBuilder::new().connect_http("http://localhost:8545".parse().unwrap());
         let bridge = Cctp::builder()
             .source_chain(chain)
             .destination_chain(NamedChain::Arbitrum)
@@ -483,7 +484,8 @@ mod tests {
     fn test_attestation_url_hash_format_edge_cases() {
         use alloy_provider::ProviderBuilder;
 
-        let provider = ProviderBuilder::new().connect_anvil();
+        let provider =
+            ProviderBuilder::new().connect_http("http://localhost:8545".parse().unwrap());
         let bridge = Cctp::builder()
             .source_chain(NamedChain::Mainnet)
             .destination_chain(NamedChain::Arbitrum)
@@ -516,7 +518,8 @@ mod tests {
     fn test_attestation_url_uses_correct_environment() {
         use alloy_provider::ProviderBuilder;
 
-        let provider = ProviderBuilder::new().connect_anvil();
+        let provider =
+            ProviderBuilder::new().connect_http("http://localhost:8545".parse().unwrap());
 
         // Mainnet should use production API
         let mainnet_bridge = Cctp::builder()

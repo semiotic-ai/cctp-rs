@@ -439,45 +439,80 @@ mod tests {
         ));
     }
 
-    #[rstest]
-    #[case(NamedChain::Mainnet, "mainnet")]
-    #[case(NamedChain::Sepolia, "sepolia")]
-    #[case(NamedChain::Arbitrum, "arbitrum")]
-    #[case(NamedChain::Base, "base")]
-    fn test_attestation_url_format(#[case] chain: NamedChain, #[case] snapshot_name: &str) {
+    #[test]
+    fn test_attestation_url_format_mainnet() {
         use alloy_provider::ProviderBuilder;
 
-        // Create a bridge instance with dummy HTTP provider (URL doesn't need to be valid for this test)
         let provider =
             ProviderBuilder::new().connect_http("http://localhost:8545".parse().unwrap());
         let bridge = Cctp::builder()
-            .source_chain(chain)
+            .source_chain(NamedChain::Mainnet)
             .destination_chain(NamedChain::Arbitrum)
             .source_provider(provider.clone())
             .destination_provider(provider)
             .recipient(Address::ZERO)
             .build();
 
-        // Test with a known hash (repeating pattern for easy visual verification)
         let test_hash = FixedBytes::from([0x12; 32]);
         let url = bridge.create_url(test_hash).unwrap();
+        insta::assert_snapshot!(url.as_str(), @"https://iris-api.circle.com/v1/attestations/0x1212121212121212121212121212121212121212121212121212121212121212");
+    }
 
-        // Inline snapshot test the full URL format
-        insta::with_settings!({snapshot_suffix => snapshot_name}, {
-            insta::assert_snapshot!(url.as_str());
-        });
+    #[test]
+    fn test_attestation_url_format_sepolia() {
+        use alloy_provider::ProviderBuilder;
 
-        // Verify basic invariants
-        let url_str = url.as_str();
-        assert!(
-            url_str.contains("/v1/attestations/0x"),
-            "URL must contain v1 path with 0x prefix"
-        );
-        assert_eq!(
-            url_str.matches("0x").count(),
-            1,
-            "URL should contain exactly one 0x prefix"
-        );
+        let provider =
+            ProviderBuilder::new().connect_http("http://localhost:8545".parse().unwrap());
+        let bridge = Cctp::builder()
+            .source_chain(NamedChain::Sepolia)
+            .destination_chain(NamedChain::Arbitrum)
+            .source_provider(provider.clone())
+            .destination_provider(provider)
+            .recipient(Address::ZERO)
+            .build();
+
+        let test_hash = FixedBytes::from([0x12; 32]);
+        let url = bridge.create_url(test_hash).unwrap();
+        insta::assert_snapshot!(url.as_str(), @"https://iris-api-sandbox.circle.com/v1/attestations/0x1212121212121212121212121212121212121212121212121212121212121212");
+    }
+
+    #[test]
+    fn test_attestation_url_format_arbitrum() {
+        use alloy_provider::ProviderBuilder;
+
+        let provider =
+            ProviderBuilder::new().connect_http("http://localhost:8545".parse().unwrap());
+        let bridge = Cctp::builder()
+            .source_chain(NamedChain::Arbitrum)
+            .destination_chain(NamedChain::Arbitrum)
+            .source_provider(provider.clone())
+            .destination_provider(provider)
+            .recipient(Address::ZERO)
+            .build();
+
+        let test_hash = FixedBytes::from([0x12; 32]);
+        let url = bridge.create_url(test_hash).unwrap();
+        insta::assert_snapshot!(url.as_str(), @"https://iris-api.circle.com/v1/attestations/0x1212121212121212121212121212121212121212121212121212121212121212");
+    }
+
+    #[test]
+    fn test_attestation_url_format_base() {
+        use alloy_provider::ProviderBuilder;
+
+        let provider =
+            ProviderBuilder::new().connect_http("http://localhost:8545".parse().unwrap());
+        let bridge = Cctp::builder()
+            .source_chain(NamedChain::Base)
+            .destination_chain(NamedChain::Arbitrum)
+            .source_provider(provider.clone())
+            .destination_provider(provider)
+            .recipient(Address::ZERO)
+            .build();
+
+        let test_hash = FixedBytes::from([0x12; 32]);
+        let url = bridge.create_url(test_hash).unwrap();
+        insta::assert_snapshot!(url.as_str(), @"https://iris-api.circle.com/v1/attestations/0x1212121212121212121212121212121212121212121212121212121212121212");
     }
 
     #[test]

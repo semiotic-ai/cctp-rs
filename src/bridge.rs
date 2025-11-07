@@ -138,7 +138,7 @@ impl<P: Provider<Ethereum> + Clone> Cctp<P> {
     /// The full URL to query the attestation status
     pub fn iris_api_url(&self, message_hash: &FixedBytes<32>) -> Url {
         self.api_url()
-            .join(&format!("/attestations/{}", hex::encode(message_hash)))
+            .join(&format!("/v1/attestations/0x{}", hex::encode(message_hash)))
             .unwrap()
     }
 
@@ -323,7 +323,7 @@ impl<P: Provider<Ethereum> + Clone> Cctp<P> {
     /// See <https://developers.circle.com/stablecoins/cctp-apis>
     pub fn create_url(&self, message_hash: FixedBytes<32>) -> Url {
         self.api_url()
-            .join(&format!("/v1/attestations/{}", hex::encode(message_hash)))
+            .join(&format!("/v1/attestations/0x{}", hex::encode(message_hash)))
             .unwrap()
     }
 

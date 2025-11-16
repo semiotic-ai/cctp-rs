@@ -40,7 +40,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-cctp-rs = "0.9.0"
+cctp-rs = "0.10.0"
 ```
 
 ### Basic Example

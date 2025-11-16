@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.0] - 2024-11-16
+
+### Changed
+
+- **BREAKING**: Minimized public API surface for improved semver stability
+  - Reduced from 30+ exports to 6 core types: `AttestationBytes`, `AttestationResponse`, `AttestationStatus`, `BridgeParams`, `Cctp`, `CctpV1`, `CctpError`, `Result`
+  - Removed public exports of domain ID constants, contract address constants, and internal configuration
+  - Internal modules (`domain_id`, `message_transmitter`, `token_messenger`) remain accessible via trait methods
+- **BREAKING**: Made `BridgeParams` fields private (public getter methods remain available)
+- **BREAKING**: Made `TokenMessengerContract.instance` field private
+- Refactored `bridge.rs` (589 lines) into clean submodules (`bridge/cctp.rs`, `bridge/params.rs`, `bridge/config.rs`)
+
+### Added
+
+- Exposed `spans` module publicly for advanced OpenTelemetry instrumentation
+- Added comprehensive documentation to `spans` module with usage examples
+
+### Fixed
+
+- Fixed all documentation warnings by referencing types instead of private modules
+
 ## [0.9.0] - 2025-01-XX
 
 ### Changed

@@ -3,6 +3,32 @@
 //! This module provides orthogonal span instrumentation following production
 //! best practices: static span names, structured attributes, and separation
 //! from business logic.
+//!
+//! # Usage
+//!
+//! These span helpers are used internally by the [`Cctp`](crate::Cctp) implementation
+//! but are exposed publicly for advanced users who need custom instrumentation or
+//! want to integrate with existing OpenTelemetry setups.
+//!
+//! # Example
+//!
+//! ```rust,no_run
+//! use cctp_rs::spans;
+//! use alloy_primitives::FixedBytes;
+//! use alloy_chains::NamedChain;
+//!
+//! // Create a span for attestation polling
+//! let message_hash = FixedBytes::from([0u8; 32]);
+//! let span = spans::get_attestation_with_retry(
+//!     &message_hash,
+//!     &NamedChain::Mainnet,
+//!     &NamedChain::Arbitrum,
+//!     30,  // max attempts
+//!     60,  // poll interval
+//! );
+//! let _guard = span.enter();
+//! // Your custom attestation logic here
+//! ```
 
 use alloy_chains::NamedChain;
 use alloy_primitives::{hex, FixedBytes, TxHash};
@@ -14,7 +40,7 @@ use url::Url;
 /// Parent: Top-level operation span (auto-attached by tracing)
 /// Children: Provider RPC calls (from alloy instrumentation)
 #[inline]
-pub(crate) fn get_message_sent_event(
+pub fn get_message_sent_event(
     tx_hash: TxHash,
     source_chain: &NamedChain,
     destination_chain: &NamedChain,
@@ -32,7 +58,7 @@ pub(crate) fn get_message_sent_event(
 /// Parent: Top-level bridge operation span
 /// Children: cctp_rs.get_attestation (multiple attempts)
 #[inline]
-pub(crate) fn get_attestation_with_retry(
+pub fn get_attestation_with_retry(
     message_hash: &FixedBytes<32>,
     source_chain: &NamedChain,
     destination_chain: &NamedChain,
@@ -54,7 +80,7 @@ pub(crate) fn get_attestation_with_retry(
 /// Parent: cctp_rs.get_attestation_with_retry
 /// Children: HTTP client request spans (from reqwest instrumentation)
 #[inline]
-pub(crate) fn get_attestation(url: &Url, attempt: u32) -> Span {
+pub fn get_attestation(url: &Url, attempt: u32) -> Span {
     tracing::debug_span!(
         "cctp_rs.get_attestation",
         url = %url,
@@ -67,7 +93,7 @@ pub(crate) fn get_attestation(url: &Url, attempt: u32) -> Span {
 /// Parent: cctp_rs.get_attestation
 /// Children: None
 #[inline]
-pub(crate) fn process_attestation_response(status_code: u16, attempt: u32) -> Span {
+pub fn process_attestation_response(status_code: u16, attempt: u32) -> Span {
     tracing::debug_span!(
         "cctp_rs.process_attestation_response",
         status_code = status_code,

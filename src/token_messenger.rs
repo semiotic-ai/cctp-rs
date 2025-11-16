@@ -41,12 +41,14 @@ pub const UNICHAIN_CCTP_V1_TOKEN_MESSENGER: Address =
     address!("4e744b28E787c3aD0e810eD65A24461D4ac5a762");
 
 /// The CCTP v1 Token Messenger contract.
+#[allow(dead_code)]
 pub struct TokenMessengerContract<P: Provider<Ethereum>> {
-    pub instance: TokenMessengerInstance<P>,
+    instance: TokenMessengerInstance<P>,
 }
 
 impl<P: Provider<Ethereum>> TokenMessengerContract<P> {
     /// Create a new TokenMessengerContract.
+    #[allow(dead_code)]
     pub fn new(address: Address, provider: P) -> Self {
         debug!(
             contract_address = %address,
@@ -60,6 +62,7 @@ impl<P: Provider<Ethereum>> TokenMessengerContract<P> {
     /// Create the call builder for the `depositForBurn` function.
     ///
     /// Most users will want to use the `deposit_for_burn_transaction` function instead.
+    #[allow(dead_code)]
     pub fn deposit_for_burn_call_builder(
         &self,
         from_address: Address,
@@ -81,6 +84,7 @@ impl<P: Provider<Ethereum>> TokenMessengerContract<P> {
     /// Create the transaction request for the `depositForBurn` function.
     ///
     /// Most users will want to use this function instead of the `deposit_for_burn_call_builder` function.
+    #[allow(dead_code)]
     pub fn deposit_for_burn_transaction(
         &self,
         from_address: Address,

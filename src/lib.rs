@@ -54,13 +54,13 @@ mod chain;
 mod domain_id;
 mod error;
 mod message_transmitter;
-mod spans;
 mod token_messenger;
 
-pub use attestation::*;
-pub use bridge::*;
-pub use chain::*;
-pub use domain_id::*;
-pub use error::*;
-pub use message_transmitter::*;
-pub use token_messenger::*;
+// Public API - minimal surface for 1.0.0 stability
+pub use attestation::{AttestationBytes, AttestationResponse, AttestationStatus};
+pub use bridge::{BridgeParams, Cctp};
+pub use chain::CctpV1;
+pub use error::{CctpError, Result};
+
+// Public module for advanced users who need custom instrumentation
+pub mod spans;

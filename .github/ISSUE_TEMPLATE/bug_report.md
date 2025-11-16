@@ -35,7 +35,7 @@ A clear and concise description of what actually happened.
 
 ## Environment
 
-- **cctp-rs version**: [e.g. 0.2.2]
+- **cctp-rs version**: [e.g. 0.10.0]
 - **Rust version**: [e.g. 1.75.0]
 - **Operating System**: [e.g. macOS 14, Ubuntu 22.04]
 - **Chain(s)**: [e.g. Ethereum, Arbitrum]

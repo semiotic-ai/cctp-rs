@@ -41,15 +41,12 @@
 //! - **Builder pattern** for intuitive API usage
 //! - **Extensive test coverage** ensuring reliability
 //!
-//! ## Modules
+//! ## Public API
 //!
-//! - [`attestation`] - Types for Circle's Iris API attestation responses
-//! - [`bridge`] - Core CCTP bridge implementation
-//! - [`chain`] - Chain-specific configurations and the `CctpV1` trait
-//! - [`error`] - Error types and result type alias
-//! - [`domain_id`] - CCTP domain ID constants for supported chains
-//! - [`message_transmitter`] - MessageTransmitter contract bindings
-//! - [`token_messenger`] - TokenMessenger contract bindings
+//! - [`AttestationResponse`] and [`AttestationStatus`] - Circle's Iris API attestation types
+//! - [`Cctp`] and [`BridgeParams`] - Core CCTP bridge implementation
+//! - [`CctpV1`] - Trait for chain-specific configurations
+//! - [`CctpError`] and [`Result`] - Error types for error handling
 
 mod attestation;
 mod bridge;

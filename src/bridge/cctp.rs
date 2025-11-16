@@ -1,8 +1,9 @@
 use crate::error::{CctpError, Result};
 use crate::spans;
+use crate::{AttestationBytes, AttestationResponse, AttestationStatus, CctpV1};
 use alloy_chains::NamedChain;
 use alloy_network::Ethereum;
-use alloy_primitives::{hex, Address, FixedBytes, TxHash, U256};
+use alloy_primitives::{hex, Address, FixedBytes, TxHash};
 use alloy_provider::Provider;
 use alloy_sol_types::SolEvent;
 use bon::Builder;
@@ -12,42 +13,8 @@ use tokio::time::sleep;
 use tracing::{debug, error, info};
 use url::Url;
 
-use crate::{AttestationBytes, AttestationResponse, AttestationStatus, CctpV1};
-
-use super::MessageTransmitter::MessageSent;
-
-/// Circle Iris API environment URLs
-///
-/// See <https://developers.circle.com/stablecoins/cctp-apis>
-///
-pub const IRIS_API: &str = "https://iris-api.circle.com";
-pub const IRIS_API_SANDBOX: &str = "https://iris-api-sandbox.circle.com";
-
-/// CCTP v1 attestation API path
-pub const ATTESTATION_PATH_V1: &str = "/v1/attestations/";
-
-/// Default confirmation requirements and timeouts for different chains
-pub const DEFAULT_CONFIRMATION_TIMEOUT: Duration = Duration::from_secs(180); // 3 minutes default
-pub const CHAIN_CONFIRMATION_CONFIG: &[(NamedChain, u64, Duration)] = &[
-    // (Chain, Required Confirmations, Timeout)
-    (NamedChain::Mainnet, 2, Duration::from_secs(300)), // 5 mins for Ethereum
-    (NamedChain::Arbitrum, 1, Duration::from_secs(120)), // 2 mins for Arbitrum
-    (NamedChain::Optimism, 1, Duration::from_secs(120)), // 2 mins for Optimism
-    (NamedChain::Polygon, 15, Duration::from_secs(180)), // More confirmations for Polygon
-    (NamedChain::Avalanche, 3, Duration::from_secs(120)), // 2 mins for Avalanche
-    (NamedChain::BinanceSmartChain, 2, Duration::from_secs(120)), // 2 mins for BNB Chain
-    (NamedChain::Base, 1, Duration::from_secs(120)),    // 2 mins for Base
-    (NamedChain::Unichain, 1, Duration::from_secs(120)), // 2 mins for Unichain
-];
-
-/// Gets the chain-specific confirmation configuration
-pub fn get_chain_confirmation_config(chain: &NamedChain) -> (u64, Duration) {
-    CHAIN_CONFIRMATION_CONFIG
-        .iter()
-        .find(|(ch, _, _)| ch == chain)
-        .map(|(_, confirmations, timeout)| (*confirmations, *timeout))
-        .unwrap_or((1, DEFAULT_CONFIRMATION_TIMEOUT))
-}
+use super::config::{ATTESTATION_PATH_V1, IRIS_API, IRIS_API_SANDBOX};
+use crate::message_transmitter::MessageTransmitter::MessageSent;
 
 /// CCTP v1 bridge implementation
 ///
@@ -363,54 +330,13 @@ impl<P: Provider<Ethereum> + Clone> Cctp<P> {
     }
 }
 
-/// Parameters for bridging USDC
-#[derive(Builder, Debug, Clone)]
-pub struct BridgeParams {
-    pub from_address: Address,
-    pub recipient: Address,
-    pub token_address: Address,
-    pub amount: U256,
-}
-
-impl BridgeParams {
-    pub fn from_address(&self) -> Address {
-        self.from_address
-    }
-
-    pub fn recipient(&self) -> Address {
-        self.recipient
-    }
-
-    pub fn token_address(&self) -> Address {
-        self.token_address
-    }
-
-    pub fn amount(&self) -> U256 {
-        self.amount
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use alloy_chains::NamedChain;
-    use alloy_primitives::{Address, U256};
+    use alloy_primitives::{Address, FixedBytes};
+    use alloy_provider::ProviderBuilder;
     use rstest::rstest;
-
-    #[test]
-    fn test_bridge_params_builder() {
-        let params = BridgeParams::builder()
-            .from_address(Address::ZERO)
-            .recipient(Address::ZERO)
-            .token_address(Address::ZERO)
-            .amount(U256::from(1000))
-            .build();
-
-        assert_eq!(params.from_address(), Address::ZERO);
-        assert_eq!(params.recipient(), Address::ZERO);
-        assert_eq!(params.token_address(), Address::ZERO);
-        assert_eq!(params.amount(), U256::from(1000));
-    }
 
     #[rstest]
     #[case(NamedChain::Mainnet, NamedChain::Arbitrum)]
@@ -441,8 +367,6 @@ mod tests {
 
     #[test]
     fn test_attestation_url_format_mainnet() {
-        use alloy_provider::ProviderBuilder;
-
         let provider =
             ProviderBuilder::new().connect_http("http://localhost:8545".parse().unwrap());
         let bridge = Cctp::builder()
@@ -460,8 +384,6 @@ mod tests {
 
     #[test]
     fn test_attestation_url_format_sepolia() {
-        use alloy_provider::ProviderBuilder;
-
         let provider =
             ProviderBuilder::new().connect_http("http://localhost:8545".parse().unwrap());
         let bridge = Cctp::builder()
@@ -479,8 +401,6 @@ mod tests {
 
     #[test]
     fn test_attestation_url_format_arbitrum() {
-        use alloy_provider::ProviderBuilder;
-
         let provider =
             ProviderBuilder::new().connect_http("http://localhost:8545".parse().unwrap());
         let bridge = Cctp::builder()
@@ -498,8 +418,6 @@ mod tests {
 
     #[test]
     fn test_attestation_url_format_base() {
-        use alloy_provider::ProviderBuilder;
-
         let provider =
             ProviderBuilder::new().connect_http("http://localhost:8545".parse().unwrap());
         let bridge = Cctp::builder()
@@ -517,8 +435,6 @@ mod tests {
 
     #[test]
     fn test_attestation_url_hash_format_edge_cases() {
-        use alloy_provider::ProviderBuilder;
-
         let provider =
             ProviderBuilder::new().connect_http("http://localhost:8545".parse().unwrap());
         let bridge = Cctp::builder()
@@ -551,8 +467,6 @@ mod tests {
 
     #[test]
     fn test_attestation_url_uses_correct_environment() {
-        use alloy_provider::ProviderBuilder;
-
         let provider =
             ProviderBuilder::new().connect_http("http://localhost:8545".parse().unwrap());
 

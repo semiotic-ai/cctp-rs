@@ -38,7 +38,7 @@ tracing = "0.1"
 url = "2.5"
 
 [dev-dependencies]
-insta = "1.43"
+insta = "1.44"
 rstest = "0.26"
 tokio = { version = "1.48", features = [
     "test-util",

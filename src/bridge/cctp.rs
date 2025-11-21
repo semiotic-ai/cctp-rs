@@ -228,14 +228,20 @@ impl<P: Provider<Ethereum> + Clone> Cctp<P> {
             // Ensure the response status is successful before trying to parse JSON
             response.error_for_status_ref()?;
 
-            let attestation: AttestationResponse = match response.json::<serde_json::Value>().await
-            {
-                Ok(attestation) => serde_json::from_value(attestation)?,
+            // Get response body as text first for better error logging
+            let response_text = response.text().await?;
+
+            let attestation: AttestationResponse = match serde_json::from_str(&response_text) {
+                Ok(attestation) => attestation,
                 Err(e) => {
                     error!(
                         error = %e,
+                        response_body = %response_text,
+                        message_hash = %hex::encode(message_hash),
+                        attempt = attempt,
                         event = "attestation_decode_failed"
                     );
+                    sleep(Duration::from_secs(poll_interval)).await;
                     continue;
                 }
             };

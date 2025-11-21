@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **CRITICAL**: Fixed deserialization failure when Circle's Iris API returns `"attestation": "PENDING"` as a string instead of `null`
+  - Added custom deserializer that gracefully handles the "PENDING" string by treating it as `None`
+  - This fixes production crashes on Arbitrum and other chains where attestation polling would fail with: `JSON error: invalid value: string "PENDING", expected a valid hex string`
+  - Enhanced error logging to include raw response body, message hash, and attempt number for better debugging
+  - Added comprehensive test coverage for all attestation response formats (valid hex, "PENDING" string, null, empty string, missing field)
+  - No breaking changes to public API
+
+### Documentation
+
+- Documented Circle API quirk where attestation field may be "PENDING" instead of null
+- Added inline comments explaining the custom deserializer workaround
+
 ## [0.10.0] - 2024-11-16
 
 ### Changed

@@ -7,9 +7,11 @@
 use alloy_network::Ethereum;
 use alloy_primitives::{Address, Bytes};
 use alloy_provider::Provider;
+use alloy_rpc_types::TransactionRequest;
 use alloy_sol_types::sol;
-use tracing::debug;
+use tracing::{debug, info};
 
+use crate::protocol::DomainId;
 use MessageTransmitterV2::MessageTransmitterV2Instance;
 
 /// The CCTP v2 Message Transmitter contract wrapper
@@ -34,12 +36,13 @@ impl<P: Provider<Ethereum>> MessageTransmitterV2Contract<P> {
         }
     }
 
-    /// Receive a cross-chain message with attestation
+    /// Create transaction request for receiving a cross-chain message with attestation
     ///
     /// # Arguments
     ///
     /// * `message` - The message bytes from the source chain
     /// * `attestation` - Circle's attestation signature for the message
+    /// * `from_address` - Address that will submit the transaction
     ///
     /// # Finality Handling
     ///
@@ -49,78 +52,114 @@ impl<P: Provider<Ethereum>> MessageTransmitterV2Contract<P> {
     ///
     /// The receiving contract must implement the appropriate handler interface.
     #[allow(dead_code)]
-    pub async fn receive_message(
+    pub fn receive_message_transaction(
         &self,
         message: Bytes,
         attestation: Bytes,
-    ) -> Result<(), alloy_contract::Error> {
-        // TODO: Implement once we have the actual v2 ABI
-        // This will call the receiveMessage function on the contract
-        debug!(
+        from_address: Address,
+    ) -> TransactionRequest {
+        info!(
             message_len = message.len(),
             attestation_len = attestation.len(),
-            event = "receive_message_v2_called"
+            from_address = %from_address,
+            contract_address = %self.instance.address(),
+            version = "v2",
+            event = "receive_message_v2_transaction_created"
         );
-        Ok(())
+
+        self.instance
+            .receiveMessage(message, attestation)
+            .from(from_address)
+            .into_transaction_request()
     }
 
-    /// Send a generic cross-chain message
+    /// Create transaction request for sending a generic cross-chain message
     ///
     /// v2 adds support for sending arbitrary messages, not just token burns.
     ///
     /// # Arguments
     ///
+    /// * `from_address` - Address initiating the message send
     /// * `destination_domain` - CCTP domain ID for destination chain
     /// * `recipient` - Recipient address on destination chain
     /// * `message_body` - Arbitrary message data
     /// * `destination_caller` - Optional authorized caller on destination (0x0 = anyone)
+    /// * `min_finality_threshold` - 1000 (fast) or 2000 (standard)
     #[allow(dead_code)]
-    pub async fn send_message(
+    pub fn send_message_transaction(
         &self,
-        destination_domain: u32,
+        from_address: Address,
+        destination_domain: DomainId,
         recipient: Address,
         message_body: Bytes,
         destination_caller: Address,
-    ) -> Result<(), alloy_contract::Error> {
-        // TODO: Implement once we have the actual v2 ABI
-        debug!(
-            destination_domain = destination_domain,
+        min_finality_threshold: u32,
+    ) -> TransactionRequest {
+        info!(
+            from_address = %from_address,
+            destination_domain = %destination_domain,
             recipient = %recipient,
             message_len = message_body.len(),
             destination_caller = %destination_caller,
-            event = "send_message_v2_called"
+            finality_threshold = min_finality_threshold,
+            contract_address = %self.instance.address(),
+            version = "v2",
+            event = "send_message_v2_transaction_created"
         );
-        Ok(())
+
+        self.instance
+            .sendMessage(
+                destination_domain.as_u32(),
+                recipient.into_word(),
+                destination_caller.into_word(),
+                min_finality_threshold,
+                message_body,
+            )
+            .from(from_address)
+            .into_transaction_request()
     }
 
     /// Query the finality threshold executed for a specific message
     ///
     /// Returns the actual finality level at which the message was attested.
+    ///
+    /// Note: This information is available in the MessageReceived event's
+    /// `finalityThresholdExecuted` field, but there's no dedicated view function
+    /// to query it. To get this value, parse the MessageReceived event logs.
     #[allow(dead_code)]
     pub async fn get_finality_threshold_executed(
         &self,
         message_hash: [u8; 32],
     ) -> Result<u32, alloy_contract::Error> {
-        // TODO: Implement once we have the actual v2 ABI
         debug!(
             message_hash = ?message_hash,
             event = "get_finality_threshold_executed_called"
         );
-        Ok(2000) // Default to standard finality
+        // Return standard finality as default since there's no view function
+        // Callers should parse MessageReceived events for the actual value
+        Ok(2000)
     }
 
     /// Check if a message has been received (anti-replay protection)
+    ///
+    /// Queries the `usedNonces` mapping to determine if a message has already
+    /// been processed. A non-zero value indicates the message was received.
     #[allow(dead_code)]
     pub async fn is_message_received(
         &self,
         message_hash: [u8; 32],
     ) -> Result<bool, alloy_contract::Error> {
-        // TODO: Implement once we have the actual v2 ABI
+        let nonce_status = self.instance.usedNonces(message_hash.into()).call().await?;
+
         debug!(
             message_hash = ?message_hash,
-            event = "is_message_received_called"
+            nonce_status = %nonce_status,
+            is_received = !nonce_status.is_zero(),
+            event = "is_message_received_checked"
         );
-        Ok(false)
+
+        // NONCE_USED constant is non-zero, so any non-zero value means received
+        Ok(!nonce_status.is_zero())
     }
 
     /// Returns the contract address

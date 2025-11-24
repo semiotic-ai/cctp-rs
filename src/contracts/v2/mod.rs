@@ -6,8 +6,5 @@
 mod message_transmitter_v2;
 mod token_messenger_v2;
 
-// These will be used in upcoming v2 bridge implementation
-#[allow(unused_imports)]
 pub use message_transmitter_v2::MessageTransmitterV2Contract;
-#[allow(unused_imports)]
 pub use token_messenger_v2::TokenMessengerV2Contract;

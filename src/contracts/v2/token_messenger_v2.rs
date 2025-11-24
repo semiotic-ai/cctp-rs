@@ -11,9 +11,8 @@ use alloy_rpc_types::TransactionRequest;
 use alloy_sol_types::sol;
 use tracing::{debug, info};
 
+use crate::protocol::DomainId;
 use crate::spans;
-// TODO: Uncomment once we have actual v2 ABI with these methods
-// use TokenMessengerV2::{depositForBurnCall, TokenMessengerV2Instance};
 use TokenMessengerV2::TokenMessengerV2Instance;
 
 /// The CCTP v2 Token Messenger contract wrapper
@@ -41,38 +40,59 @@ impl<P: Provider<Ethereum>> TokenMessengerV2Contract<P> {
     ///
     /// For standard transfers without fast transfer or hooks.
     ///
-    /// # TODO
+    /// # Arguments
     ///
-    /// This is a placeholder implementation. Once we have the actual v2 ABI,
-    /// this will call the real depositForBurn method with v2 parameters.
+    /// * `from_address` - Address initiating the burn
+    /// * `recipient` - Recipient address on destination chain
+    /// * `destination_domain` - CCTP domain ID for destination
+    /// * `token_address` - USDC token contract address
+    /// * `amount` - Amount to burn
+    /// * `max_fee` - Maximum fee for fast transfer (0 for standard)
+    /// * `min_finality_threshold` - 1000 (fast) or 2000 (standard)
+    /// * `destination_caller` - Authorized caller on destination (0x0 = anyone)
     #[allow(dead_code)]
+    #[allow(clippy::too_many_arguments)]
     fn deposit_for_burn_internal(
         &self,
-        _from_address: Address,
-        _recipient: Address,
-        _destination_domain: u32,
-        _token_address: Address,
-        _amount: U256,
+        from_address: Address,
+        recipient: Address,
+        destination_domain: DomainId,
+        token_address: Address,
+        amount: U256,
+        max_fee: U256,
+        min_finality_threshold: u32,
+        destination_caller: Address,
     ) -> TransactionRequest {
-        // TODO: Implement once we have actual v2 ABI
-        // For now, return an empty transaction request
-        TransactionRequest::default()
+        self.instance
+            .depositForBurn(
+                amount,
+                destination_domain.as_u32(),
+                recipient.into_word(),
+                token_address,
+                destination_caller.into_word(),
+                max_fee,
+                min_finality_threshold,
+            )
+            .from(from_address)
+            .into_transaction_request()
     }
 
     /// Create the transaction request for the `depositForBurn` function (v2 standard)
+    ///
+    /// Standard transfer with 2000 (finalized) threshold and no fees.
     #[allow(dead_code)]
     pub fn deposit_for_burn_transaction(
         &self,
         from_address: Address,
         recipient: Address,
-        destination_domain: u32,
+        destination_domain: DomainId,
         token_address: Address,
         amount: U256,
     ) -> TransactionRequest {
         let span = spans::deposit_for_burn(
             &from_address,
             &recipient,
-            destination_domain,
+            destination_domain.as_u32(),
             &token_address,
             &amount,
         );
@@ -81,11 +101,12 @@ impl<P: Provider<Ethereum>> TokenMessengerV2Contract<P> {
         info!(
             from_address = %from_address,
             recipient = %recipient,
-            destination_domain = destination_domain,
+            destination_domain = %destination_domain,
             token_address = %token_address,
             amount = %amount,
             contract_address = %self.instance.address(),
             version = "v2",
+            finality_threshold = 2000,
             event = "deposit_for_burn_v2_transaction_created"
         );
 
@@ -95,6 +116,9 @@ impl<P: Provider<Ethereum>> TokenMessengerV2Contract<P> {
             destination_domain,
             token_address,
             amount,
+            U256::ZERO,    // max_fee: 0 for standard transfers
+            2000,          // min_finality_threshold: 2000 = finalized
+            Address::ZERO, // destination_caller: 0x0 = anyone
         )
     }
 
@@ -113,13 +137,13 @@ impl<P: Provider<Ethereum>> TokenMessengerV2Contract<P> {
     ///
     /// When max_fee >= minimum fast transfer fee for the chain, the transfer
     /// will be attested at the "confirmed" finality level (~30 seconds) instead
-    /// of "finalized" level (~15 minutes).
+    /// of "finalized" level (~15 minutes). Uses finality threshold 1000.
     #[allow(dead_code)]
     pub fn deposit_for_burn_fast_transaction(
         &self,
         from_address: Address,
         recipient: Address,
-        destination_domain: u32,
+        destination_domain: DomainId,
         token_address: Address,
         amount: U256,
         max_fee: U256,
@@ -127,25 +151,26 @@ impl<P: Provider<Ethereum>> TokenMessengerV2Contract<P> {
         info!(
             from_address = %from_address,
             recipient = %recipient,
-            destination_domain = destination_domain,
+            destination_domain = %destination_domain,
             token_address = %token_address,
             amount = %amount,
             max_fee = %max_fee,
             contract_address = %self.instance.address(),
             version = "v2",
             transfer_type = "fast",
+            finality_threshold = 1000,
             event = "deposit_for_burn_fast_transaction_created"
         );
 
-        // TODO: Update this once we have the actual v2 ABI with fast transfer parameters
-        // For now, use standard deposit_for_burn
-        // The real v2 contract will have additional parameters for minFinalityThreshold and maxFee
         self.deposit_for_burn_internal(
             from_address,
             recipient,
             destination_domain,
             token_address,
             amount,
+            max_fee,       // max_fee: provided by caller
+            1000,          // min_finality_threshold: 1000 = confirmed (fast)
+            Address::ZERO, // destination_caller: 0x0 = anyone
         )
     }
 
@@ -169,7 +194,7 @@ impl<P: Provider<Ethereum>> TokenMessengerV2Contract<P> {
         &self,
         from_address: Address,
         recipient: Address,
-        destination_domain: u32,
+        destination_domain: DomainId,
         token_address: Address,
         amount: U256,
         hook_data: Bytes,
@@ -177,39 +202,46 @@ impl<P: Provider<Ethereum>> TokenMessengerV2Contract<P> {
         info!(
             from_address = %from_address,
             recipient = %recipient,
-            destination_domain = destination_domain,
+            destination_domain = %destination_domain,
             token_address = %token_address,
             amount = %amount,
             hook_data_len = hook_data.len(),
             contract_address = %self.instance.address(),
             version = "v2",
             has_hooks = true,
+            finality_threshold = 2000,
             event = "deposit_for_burn_hooks_transaction_created"
         );
 
-        // TODO: Update this once we have the actual v2 ABI with hooks parameter
-        // For now, use standard deposit_for_burn
-        // The real v2 contract will have hookData parameter
-        self.deposit_for_burn_internal(
-            from_address,
-            recipient,
-            destination_domain,
-            token_address,
-            amount,
-        )
+        self.instance
+            .depositForBurnWithHook(
+                amount,
+                destination_domain.as_u32(),
+                recipient.into_word(),
+                token_address,
+                Address::ZERO.into_word(), // destination_caller: 0x0 = anyone
+                U256::ZERO,                // max_fee: 0 for standard transfers
+                2000,                      // min_finality_threshold: 2000 = finalized
+                hook_data,
+            )
+            .from(from_address)
+            .into_transaction_request()
     }
 
     /// Get the minimum fee required for fast transfer on this chain
     ///
-    /// Only available on chains where fast transfer fee is enabled.
-    /// Returns 0 on chains without fast transfer fees.
+    /// Note: The v2 TokenMessenger contract does not expose a `getMinFeeAmount`
+    /// view function. Fee amounts are likely determined off-chain or through
+    /// the TokenMinter contract. This method returns 0 as a safe default.
+    ///
+    /// For production use, consult Circle's documentation for current fee structures
+    /// or query the fee configuration from off-chain sources.
     #[allow(dead_code)]
     pub async fn get_min_fee_amount(
         &self,
         _burn_amount: U256,
     ) -> Result<U256, alloy_contract::Error> {
-        // TODO: Implement once we have the actual v2 ABI
-        // For now, return 0 (no fee)
+        // No view function available in v2 ABI
         Ok(U256::ZERO)
     }
 

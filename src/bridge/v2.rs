@@ -17,6 +17,7 @@ use url::Url;
 use super::bridge_trait::CctpBridge;
 use super::config::{ATTESTATION_PATH_V2, IRIS_API, IRIS_API_SANDBOX};
 use crate::contracts::message_transmitter::MessageTransmitter::MessageSent;
+use crate::contracts::v2::{MessageTransmitterV2Contract, TokenMessengerV2Contract};
 
 /// CCTP v2 bridge implementation
 ///
@@ -422,6 +423,271 @@ impl<P: Provider<Ethereum> + Clone> CctpV2<P> {
             event = "attestation_timeout"
         );
         Err(CctpError::AttestationTimeout)
+    }
+
+    /// Initiate a USDC burn on the source chain
+    ///
+    /// This creates and sends the depositForBurn transaction which locks USDC on the source
+    /// chain and emits a MessageSent event.
+    ///
+    /// # Arguments
+    ///
+    /// * `amount` - Amount of USDC to transfer (in atomic units, e.g., 1 USDC = 1_000_000)
+    /// * `from` - Address that will send the transaction (must have USDC balance and gas)
+    /// * `token_address` - USDC token contract address on source chain
+    ///
+    /// # Returns
+    ///
+    /// The transaction hash of the burn transaction
+    ///
+    /// # Example
+    ///
+    /// ```rust,ignore
+    /// # use cctp_rs::CctpV2Bridge;
+    /// # use alloy_primitives::{Address, U256};
+    /// # async fn example<P>(bridge: CctpV2Bridge<P>) -> Result<(), Box<dyn std::error::Error>>
+    /// # where P: alloy_provider::Provider<alloy_network::Ethereum> + Clone
+    /// # {
+    /// let amount = U256::from(1_000_000); // 1 USDC
+    /// let from_address = "0x742d35Cc6634C0532925a3b844Bc9e7595f8fA0d".parse()?;
+    /// let usdc = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48".parse()?;
+    ///
+    /// let tx_hash = bridge.burn(amount, from_address, usdc).await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub async fn burn(
+        &self,
+        amount: U256,
+        from: Address,
+        token_address: Address,
+    ) -> Result<TxHash> {
+        let token_messenger_address = self.token_messenger_v2_contract()?;
+        let destination_domain = self.destination_domain_id()?;
+
+        let token_messenger =
+            TokenMessengerV2Contract::new(token_messenger_address, self.source_provider.clone());
+
+        let tx_request = if let Some(hook_data) = &self.hook_data {
+            // Use depositForBurnWithHook if hooks are configured
+            token_messenger.deposit_for_burn_with_hooks_transaction(
+                from,
+                self.recipient,
+                destination_domain,
+                token_address,
+                amount,
+                hook_data.clone(),
+            )
+        } else if self.fast_transfer {
+            // Use fast transfer variant
+            let max_fee = self.max_fee.unwrap_or(U256::ZERO);
+            token_messenger.deposit_for_burn_fast_transaction(
+                from,
+                self.recipient,
+                destination_domain,
+                token_address,
+                amount,
+                max_fee,
+            )
+        } else {
+            // Standard transfer
+            token_messenger.deposit_for_burn_transaction(
+                from,
+                self.recipient,
+                destination_domain,
+                token_address,
+                amount,
+            )
+        };
+
+        info!(
+            from = %from,
+            amount = %amount,
+            token_address = %token_address,
+            destination_domain = %destination_domain,
+            fast_transfer = self.fast_transfer,
+            has_hooks = self.hook_data.is_some(),
+            version = "v2",
+            event = "burn_transaction_initiated"
+        );
+
+        let pending_tx = self.source_provider.send_transaction(tx_request).await?;
+        let tx_hash = *pending_tx.tx_hash();
+
+        info!(
+            tx_hash = %tx_hash,
+            version = "v2",
+            event = "burn_transaction_sent"
+        );
+
+        Ok(tx_hash)
+    }
+
+    /// Complete a transfer by minting USDC on the destination chain
+    ///
+    /// This submits the receiveMessage transaction with the attestation to mint USDC
+    /// on the destination chain.
+    ///
+    /// # Arguments
+    ///
+    /// * `message_bytes` - The message bytes from the MessageSent event
+    /// * `attestation` - Circle's attestation signature for the message
+    /// * `from` - Address that will submit the transaction (needs gas on destination chain)
+    ///
+    /// # Returns
+    ///
+    /// The transaction hash of the mint transaction
+    ///
+    /// # Example
+    ///
+    /// ```rust,ignore
+    /// # use cctp_rs::CctpV2Bridge;
+    /// # use alloy_primitives::Address;
+    /// # async fn example<P>(
+    /// #     bridge: CctpV2Bridge<P>,
+    /// #     message: Vec<u8>,
+    /// #     attestation: Vec<u8>
+    /// # ) -> Result<(), Box<dyn std::error::Error>>
+    /// # where P: alloy_provider::Provider<alloy_network::Ethereum> + Clone
+    /// # {
+    /// let from_address = "0x742d35Cc6634C0532925a3b844Bc9e7595f8fA0d".parse()?;
+    /// let tx_hash = bridge.mint(message, attestation, from_address).await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub async fn mint(
+        &self,
+        message_bytes: Vec<u8>,
+        attestation: AttestationBytes,
+        from: Address,
+    ) -> Result<TxHash> {
+        let message_transmitter_address = self.message_transmitter_v2_contract()?;
+
+        let message_transmitter = MessageTransmitterV2Contract::new(
+            message_transmitter_address,
+            self.destination_provider.clone(),
+        );
+
+        let tx_request = message_transmitter.receive_message_transaction(
+            Bytes::from(message_bytes.clone()),
+            Bytes::from(attestation.clone()),
+            from,
+        );
+
+        info!(
+            from = %from,
+            message_len = message_bytes.len(),
+            attestation_len = attestation.len(),
+            version = "v2",
+            event = "mint_transaction_initiated"
+        );
+
+        let pending_tx = self
+            .destination_provider
+            .send_transaction(tx_request)
+            .await?;
+        let tx_hash = *pending_tx.tx_hash();
+
+        info!(
+            tx_hash = %tx_hash,
+            version = "v2",
+            event = "mint_transaction_sent"
+        );
+
+        Ok(tx_hash)
+    }
+
+    /// Execute a full cross-chain transfer: burn + wait for attestation + mint
+    ///
+    /// This is a convenience method that orchestrates the complete transfer flow:
+    /// 1. Burns USDC on source chain
+    /// 2. Extracts MessageSent event from burn transaction
+    /// 3. Polls Circle's Iris API for attestation
+    /// 4. Mints USDC on destination chain
+    ///
+    /// # Arguments
+    ///
+    /// * `amount` - Amount of USDC to transfer (in atomic units)
+    /// * `from` - Address initiating the transfer (needs USDC + gas on source, gas on destination)
+    /// * `token_address` - USDC token contract address on source chain
+    ///
+    /// # Returns
+    ///
+    /// Tuple of (burn_tx_hash, mint_tx_hash)
+    ///
+    /// # Example
+    ///
+    /// ```rust,ignore
+    /// # use cctp_rs::CctpV2Bridge;
+    /// # use alloy_primitives::{Address, U256};
+    /// # async fn example<P>(bridge: CctpV2Bridge<P>) -> Result<(), Box<dyn std::error::Error>>
+    /// # where P: alloy_provider::Provider<alloy_network::Ethereum> + Clone
+    /// # {
+    /// let amount = U256::from(1_000_000); // 1 USDC
+    /// let from_address = "0x742d35Cc6634C0532925a3b844Bc9e7595f8fA0d".parse()?;
+    /// let usdc = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48".parse()?;
+    ///
+    /// let (burn_tx, mint_tx) = bridge.transfer(amount, from_address, usdc).await?;
+    /// println!("Transfer complete! Burn: {}, Mint: {}", burn_tx, mint_tx);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub async fn transfer(
+        &self,
+        amount: U256,
+        from: Address,
+        token_address: Address,
+    ) -> Result<(TxHash, TxHash)> {
+        info!(
+            amount = %amount,
+            from = %from,
+            token_address = %token_address,
+            source_chain = ?self.source_chain,
+            destination_chain = ?self.destination_chain,
+            fast_transfer = self.fast_transfer,
+            has_hooks = self.hook_data.is_some(),
+            version = "v2",
+            event = "full_transfer_initiated"
+        );
+
+        // Step 1: Burn tokens on source chain
+        let burn_tx_hash = self.burn(amount, from, token_address).await?;
+
+        info!(
+            burn_tx_hash = %burn_tx_hash,
+            event = "waiting_for_message_sent_event"
+        );
+
+        // Step 2: Get MessageSent event from burn transaction
+        let (message_bytes, message_hash) = self.get_message_sent_event(burn_tx_hash).await?;
+
+        info!(
+            message_hash = %hex::encode(message_hash),
+            event = "message_sent_event_retrieved"
+        );
+
+        // Step 3: Poll for attestation
+        let attestation = self
+            .get_attestation_with_retry(message_hash, None, None)
+            .await?;
+
+        info!(
+            message_hash = %hex::encode(message_hash),
+            attestation_len = attestation.len(),
+            event = "attestation_received"
+        );
+
+        // Step 4: Mint tokens on destination chain
+        let mint_tx_hash = self.mint(message_bytes, attestation, from).await?;
+
+        info!(
+            burn_tx_hash = %burn_tx_hash,
+            mint_tx_hash = %mint_tx_hash,
+            version = "v2",
+            event = "full_transfer_completed"
+        );
+
+        Ok((burn_tx_hash, mint_tx_hash))
     }
 
     /// Constructs the Iris API v2 URL for attestation polling

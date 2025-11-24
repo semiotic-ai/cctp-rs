@@ -11,6 +11,9 @@ pub const IRIS_API_SANDBOX: &str = "https://iris-api-sandbox.circle.com";
 /// CCTP v1 attestation API path
 pub const ATTESTATION_PATH_V1: &str = "/v1/attestations/";
 
+/// CCTP v2 attestation API path
+pub const ATTESTATION_PATH_V2: &str = "/v2/attestations/";
+
 /// Default confirmation requirements and timeouts for different chains
 #[allow(dead_code)]
 pub const DEFAULT_CONFIRMATION_TIMEOUT: Duration = Duration::from_secs(180); // 3 minutes default

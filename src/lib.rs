@@ -55,7 +55,7 @@ mod error;
 mod protocol;
 
 // Public API - minimal surface for 1.0.0 stability
-pub use bridge::{BridgeParams, Cctp, CctpBridge};
+pub use bridge::{BridgeParams, Cctp, CctpBridge, CctpV2 as CctpV2Bridge};
 pub use chain::{CctpV1, CctpV2};
 pub use error::{CctpError, Result};
 pub use protocol::{

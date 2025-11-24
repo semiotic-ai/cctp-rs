@@ -7,7 +7,9 @@ mod bridge_trait;
 mod cctp;
 mod config;
 mod params;
+mod v2;
 
 pub use bridge_trait::CctpBridge;
 pub use cctp::Cctp;
 pub use params::BridgeParams;
+pub use v2::CctpV2;

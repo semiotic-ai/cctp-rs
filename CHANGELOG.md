@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.0] - 2025-01-24
+
+### Changed
+
+- **BREAKING**: Replaced primitive domain ID types with strongly-typed `DomainId` enum
+  - Domain IDs are now type-safe with compile-time validation
+  - Added `DomainId::from_u32()`, `DomainId::as_u32()`, `DomainId::name()`, and `Display` trait support
+  - Improved API ergonomics with meaningful type names instead of raw integers
+- Reorganized crate into conceptual modules for better code organization
+  - Split code into logical modules: `bridge`, `chain`, `contracts`, `protocol`, and `spans`
+  - Improved maintainability and discoverability of functionality
+- Updated all Cargo dependencies to latest versions
+
+### Added
+
+- Enhanced OpenTelemetry instrumentation with comprehensive error tracking
+  - Added structured error recording with full context preservation
+  - Improved observability for debugging production issues
+  - Better span hierarchy for cross-chain transfer tracing
+
 ## [0.10.1] - 2025-01-21
 
 ### Fixed

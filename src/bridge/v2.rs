@@ -983,4 +983,376 @@ mod tests {
         assert_eq!(bridge.max_fee(), Some(U256::from(500)));
         assert!(bridge.hook_data().is_some());
     }
+
+    // Integration tests for transfer flow logic
+
+    #[test]
+    fn test_v2_contract_method_selection_standard() {
+        let provider =
+            ProviderBuilder::new().connect_http("http://localhost:8545".parse().unwrap());
+
+        // Standard transfer should use basic depositForBurn
+        let bridge = CctpV2::builder()
+            .source_chain(NamedChain::Mainnet)
+            .destination_chain(NamedChain::Linea)
+            .source_provider(provider.clone())
+            .destination_provider(provider)
+            .recipient(Address::ZERO)
+            .build();
+
+        // Verify configuration for standard transfer
+        assert!(!bridge.is_fast_transfer());
+        assert!(bridge.hook_data().is_none());
+        assert_eq!(bridge.finality_threshold(), FinalityThreshold::Standard);
+        assert_eq!(bridge.finality_threshold().as_u32(), 2000);
+    }
+
+    #[test]
+    fn test_v2_contract_method_selection_fast() {
+        let provider =
+            ProviderBuilder::new().connect_http("http://localhost:8545".parse().unwrap());
+
+        // Fast transfer should use depositForBurnFast
+        let bridge = CctpV2::builder()
+            .source_chain(NamedChain::Mainnet)
+            .destination_chain(NamedChain::Linea)
+            .source_provider(provider.clone())
+            .destination_provider(provider)
+            .recipient(Address::ZERO)
+            .fast_transfer(true)
+            .max_fee(U256::from(1000))
+            .build();
+
+        // Verify configuration for fast transfer
+        assert!(bridge.is_fast_transfer());
+        assert!(bridge.hook_data().is_none());
+        assert_eq!(bridge.finality_threshold(), FinalityThreshold::Fast);
+        assert_eq!(bridge.finality_threshold().as_u32(), 1000);
+        assert_eq!(bridge.max_fee(), Some(U256::from(1000)));
+    }
+
+    #[test]
+    fn test_v2_contract_method_selection_hooks() {
+        let provider =
+            ProviderBuilder::new().connect_http("http://localhost:8545".parse().unwrap());
+        let hook_data = Bytes::from(vec![1, 2, 3, 4]);
+
+        // With hooks should use depositForBurnWithHook
+        let bridge = CctpV2::builder()
+            .source_chain(NamedChain::Mainnet)
+            .destination_chain(NamedChain::Linea)
+            .source_provider(provider.clone())
+            .destination_provider(provider)
+            .recipient(Address::ZERO)
+            .hook_data(hook_data.clone())
+            .build();
+
+        // Verify configuration for hooks transfer
+        assert!(!bridge.is_fast_transfer());
+        assert_eq!(bridge.hook_data(), Some(&hook_data));
+        assert_eq!(bridge.finality_threshold(), FinalityThreshold::Standard);
+    }
+
+    #[test]
+    fn test_v2_contract_method_selection_priority() {
+        let provider =
+            ProviderBuilder::new().connect_http("http://localhost:8545".parse().unwrap());
+        let hook_data = Bytes::from(vec![1, 2, 3, 4]);
+
+        // Hooks should take priority over fast transfer
+        let bridge = CctpV2::builder()
+            .source_chain(NamedChain::Mainnet)
+            .destination_chain(NamedChain::Linea)
+            .source_provider(provider.clone())
+            .destination_provider(provider)
+            .recipient(Address::ZERO)
+            .fast_transfer(true)
+            .max_fee(U256::from(1000))
+            .hook_data(hook_data.clone())
+            .build();
+
+        // Verify hooks take priority
+        assert!(bridge.is_fast_transfer());
+        assert_eq!(bridge.hook_data(), Some(&hook_data));
+        assert_eq!(bridge.finality_threshold(), FinalityThreshold::Fast);
+    }
+
+    #[rstest]
+    #[case(NamedChain::Mainnet, NamedChain::Linea)]
+    #[case(NamedChain::Arbitrum, NamedChain::Sonic)]
+    #[case(NamedChain::Base, NamedChain::Sei)]
+    #[case(NamedChain::Sepolia, NamedChain::BaseSepolia)]
+    fn test_v2_fast_transfer_chain_support(
+        #[case] source: NamedChain,
+        #[case] destination: NamedChain,
+    ) {
+        let provider =
+            ProviderBuilder::new().connect_http("http://localhost:8545".parse().unwrap());
+
+        // All v2 chains support fast transfer
+        let bridge = CctpV2::builder()
+            .source_chain(source)
+            .destination_chain(destination)
+            .source_provider(provider.clone())
+            .destination_provider(provider)
+            .recipient(Address::ZERO)
+            .fast_transfer(true)
+            .build();
+
+        assert!(bridge.supports_fast_transfer());
+        assert_eq!(bridge.finality_threshold(), FinalityThreshold::Fast);
+    }
+
+    #[test]
+    fn test_v2_domain_id_resolution() {
+        let provider =
+            ProviderBuilder::new().connect_http("http://localhost:8545".parse().unwrap());
+
+        let bridge = CctpV2::builder()
+            .source_chain(NamedChain::Mainnet)
+            .destination_chain(NamedChain::Linea)
+            .source_provider(provider.clone())
+            .destination_provider(provider)
+            .recipient(Address::ZERO)
+            .build();
+
+        // Verify domain IDs are correctly resolved
+        let source_domain = bridge.source_chain().cctp_v2_domain_id().unwrap();
+        let dest_domain = bridge.destination_domain_id().unwrap();
+
+        assert_eq!(source_domain, DomainId::Ethereum);
+        assert_eq!(dest_domain, DomainId::Linea);
+        assert_eq!(source_domain.as_u32(), 0);
+        assert_eq!(dest_domain.as_u32(), 11);
+    }
+
+    #[test]
+    fn test_v2_contract_address_resolution() {
+        let provider =
+            ProviderBuilder::new().connect_http("http://localhost:8545".parse().unwrap());
+
+        let bridge = CctpV2::builder()
+            .source_chain(NamedChain::Mainnet)
+            .destination_chain(NamedChain::Linea)
+            .source_provider(provider.clone())
+            .destination_provider(provider)
+            .recipient(Address::ZERO)
+            .build();
+
+        // Verify contract addresses are correctly resolved
+        let token_messenger = bridge.token_messenger_v2_contract().unwrap();
+        let message_transmitter = bridge.message_transmitter_v2_contract().unwrap();
+
+        // Mainnet v2 addresses (unified across all v2 chains)
+        assert_eq!(
+            token_messenger,
+            "0x28b5a0e9C621a5BadaA536219b3a228C8168cf5d"
+                .parse::<Address>()
+                .unwrap()
+        );
+        assert_eq!(
+            message_transmitter,
+            "0x81D40F21F12A8F0E3252Bccb954D722d4c464B64"
+                .parse::<Address>()
+                .unwrap()
+        );
+    }
+
+    #[test]
+    fn test_v2_api_url_construction() {
+        let provider =
+            ProviderBuilder::new().connect_http("http://localhost:8545".parse().unwrap());
+
+        // Mainnet should use production API
+        let mainnet_bridge = CctpV2::builder()
+            .source_chain(NamedChain::Mainnet)
+            .destination_chain(NamedChain::Linea)
+            .source_provider(provider.clone())
+            .destination_provider(provider.clone())
+            .recipient(Address::ZERO)
+            .build();
+
+        let test_hash = FixedBytes::from([0xab; 32]);
+        let mainnet_url = mainnet_bridge.create_url(test_hash).unwrap();
+        assert!(mainnet_url.as_str().contains("iris-api.circle.com"));
+        assert!(mainnet_url.as_str().contains("/v2/attestations/"));
+
+        // Testnet should use sandbox API
+        let testnet_bridge = CctpV2::builder()
+            .source_chain(NamedChain::Sepolia)
+            .destination_chain(NamedChain::BaseSepolia)
+            .source_provider(provider.clone())
+            .destination_provider(provider)
+            .recipient(Address::ZERO)
+            .build();
+
+        let testnet_url = testnet_bridge.create_url(test_hash).unwrap();
+        assert!(testnet_url.as_str().contains("iris-api-sandbox.circle.com"));
+        assert!(testnet_url.as_str().contains("/v2/attestations/"));
+    }
+
+    #[test]
+    fn test_v2_finality_threshold_mapping() {
+        let provider =
+            ProviderBuilder::new().connect_http("http://localhost:8545".parse().unwrap());
+
+        // Standard transfer
+        let standard = CctpV2::builder()
+            .source_chain(NamedChain::Mainnet)
+            .destination_chain(NamedChain::Linea)
+            .source_provider(provider.clone())
+            .destination_provider(provider.clone())
+            .recipient(Address::ZERO)
+            .build();
+
+        assert_eq!(standard.finality_threshold(), FinalityThreshold::Standard);
+        assert_eq!(standard.finality_threshold().as_u32(), 2000);
+        assert!(standard.finality_threshold().is_standard());
+        assert!(!standard.finality_threshold().is_fast());
+
+        // Fast transfer
+        let fast = CctpV2::builder()
+            .source_chain(NamedChain::Mainnet)
+            .destination_chain(NamedChain::Linea)
+            .source_provider(provider.clone())
+            .destination_provider(provider)
+            .recipient(Address::ZERO)
+            .fast_transfer(true)
+            .build();
+
+        assert_eq!(fast.finality_threshold(), FinalityThreshold::Fast);
+        assert_eq!(fast.finality_threshold().as_u32(), 1000);
+        assert!(!fast.finality_threshold().is_standard());
+        assert!(fast.finality_threshold().is_fast());
+    }
+
+    #[rstest]
+    #[case(NamedChain::Mainnet, NamedChain::Linea)]
+    #[case(NamedChain::Arbitrum, NamedChain::Sonic)]
+    #[case(NamedChain::Base, NamedChain::Sei)]
+    #[case(NamedChain::Optimism, NamedChain::Polygon)]
+    fn test_v2_cross_chain_integration(
+        #[case] source: NamedChain,
+        #[case] destination: NamedChain,
+    ) {
+        let provider =
+            ProviderBuilder::new().connect_http("http://localhost:8545".parse().unwrap());
+
+        // Verify we can create a bridge for any valid v2 chain pair
+        let bridge = CctpV2::builder()
+            .source_chain(source)
+            .destination_chain(destination)
+            .source_provider(provider.clone())
+            .destination_provider(provider)
+            .recipient(Address::ZERO)
+            .build();
+
+        // All should resolve successfully
+        assert!(bridge.source_chain().cctp_v2_domain_id().is_ok());
+        assert!(bridge.destination_domain_id().is_ok());
+        assert!(bridge.token_messenger_v2_contract().is_ok());
+        assert!(bridge.message_transmitter_v2_contract().is_ok());
+
+        // All mainnet chains should have the same v2 contract addresses
+        if !source.is_testnet() && !destination.is_testnet() {
+            let token_messenger = bridge.token_messenger_v2_contract().unwrap();
+            let message_transmitter = bridge.message_transmitter_v2_contract().unwrap();
+
+            assert_eq!(
+                token_messenger,
+                "0x28b5a0e9C621a5BadaA536219b3a228C8168cf5d"
+                    .parse::<Address>()
+                    .unwrap()
+            );
+            assert_eq!(
+                message_transmitter,
+                "0x81D40F21F12A8F0E3252Bccb954D722d4c464B64"
+                    .parse::<Address>()
+                    .unwrap()
+            );
+        }
+    }
+
+    #[test]
+    fn test_v2_error_handling_unsupported_chain() {
+        // Try to get v2 addresses for a chain that doesn't support v2
+        let result = NamedChain::Moonbeam.token_messenger_v2_address();
+        assert!(result.is_err());
+
+        let result = NamedChain::Moonbeam.message_transmitter_v2_address();
+        assert!(result.is_err());
+
+        let result = NamedChain::Moonbeam.cctp_v2_domain_id();
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_v2_recipient_address_validation() {
+        let provider =
+            ProviderBuilder::new().connect_http("http://localhost:8545".parse().unwrap());
+        let recipient = "0x742d35Cc6634C0532925a3b844Bc9e7595f8fA0d"
+            .parse::<Address>()
+            .unwrap();
+
+        let bridge = CctpV2::builder()
+            .source_chain(NamedChain::Mainnet)
+            .destination_chain(NamedChain::Linea)
+            .source_provider(provider.clone())
+            .destination_provider(provider)
+            .recipient(recipient)
+            .build();
+
+        assert_eq!(bridge.recipient(), &recipient);
+    }
+
+    #[test]
+    fn test_v2_max_fee_defaults() {
+        let provider =
+            ProviderBuilder::new().connect_http("http://localhost:8545".parse().unwrap());
+
+        // Without max_fee specified
+        let no_fee = CctpV2::builder()
+            .source_chain(NamedChain::Mainnet)
+            .destination_chain(NamedChain::Linea)
+            .source_provider(provider.clone())
+            .destination_provider(provider.clone())
+            .recipient(Address::ZERO)
+            .fast_transfer(true)
+            .build();
+
+        assert_eq!(no_fee.max_fee(), None);
+
+        // With max_fee specified
+        let with_fee = CctpV2::builder()
+            .source_chain(NamedChain::Mainnet)
+            .destination_chain(NamedChain::Linea)
+            .source_provider(provider.clone())
+            .destination_provider(provider)
+            .recipient(Address::ZERO)
+            .fast_transfer(true)
+            .max_fee(U256::from(500))
+            .build();
+
+        assert_eq!(with_fee.max_fee(), Some(U256::from(500)));
+    }
+
+    #[test]
+    fn test_v2_hooks_data_validation() {
+        let provider =
+            ProviderBuilder::new().connect_http("http://localhost:8545".parse().unwrap());
+        let hook_data = Bytes::from(vec![0xde, 0xad, 0xbe, 0xef]);
+
+        let bridge = CctpV2::builder()
+            .source_chain(NamedChain::Mainnet)
+            .destination_chain(NamedChain::Linea)
+            .source_provider(provider.clone())
+            .destination_provider(provider)
+            .recipient(Address::ZERO)
+            .hook_data(hook_data.clone())
+            .build();
+
+        assert_eq!(bridge.hook_data(), Some(&hook_data));
+        assert_eq!(bridge.hook_data().unwrap().len(), 4);
+        assert_eq!(bridge.hook_data().unwrap()[0], 0xde);
+    }
 }

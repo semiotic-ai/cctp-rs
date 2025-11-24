@@ -9,6 +9,8 @@ use alloy_sol_types::sol;
 use tracing::{debug, info};
 use TokenMessenger::{depositForBurnCall, TokenMessengerInstance};
 
+use crate::spans;
+
 /// <https://developers.circle.com/stablecoins/evm-smart-contracts>
 pub const ARBITRUM_TOKEN_MESSENGER_ADDRESS: Address =
     address!("19330d10D9Cc8751218eaf51E8885D058642E08A");
@@ -93,6 +95,15 @@ impl<P: Provider<Ethereum>> TokenMessengerContract<P> {
         token_address: Address,
         amount: U256,
     ) -> TransactionRequest {
+        let span = spans::deposit_for_burn(
+            &from_address,
+            &recipient,
+            destination_domain,
+            &token_address,
+            &amount,
+        );
+        let _guard = span.enter();
+
         info!(
             from_address = %from_address,
             recipient = %recipient,
@@ -102,6 +113,7 @@ impl<P: Provider<Ethereum>> TokenMessengerContract<P> {
             contract_address = %self.instance.address(),
             event = "deposit_for_burn_transaction_created"
         );
+
         self.deposit_for_burn_call_builder(
             from_address,
             recipient,

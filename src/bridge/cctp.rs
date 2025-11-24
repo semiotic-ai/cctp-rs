@@ -114,10 +114,22 @@ impl<P: Provider<Ethereum> + Clone> Cctp<P> {
             spans::get_message_sent_event(tx_hash, &self.source_chain, &self.destination_chain);
         let _guard = span.enter();
 
-        let tx_receipt = self
-            .source_provider
-            .get_transaction_receipt(tx_hash)
-            .await?;
+        let tx_receipt = match self.source_provider.get_transaction_receipt(tx_hash).await {
+            Ok(receipt) => receipt,
+            Err(e) => {
+                let error_msg = format!("Failed to get transaction receipt: {}", e);
+                spans::record_error_with_context(
+                    "ReceiptRetrievalFailed",
+                    &error_msg,
+                    Some("RPC call to get_transaction_receipt failed"),
+                );
+                error!(
+                    error = %e,
+                    event = "transaction_receipt_retrieval_failed"
+                );
+                return Err(CctpError::TransactionFailed { reason: error_msg });
+            }
+        };
 
         if let Some(tx_receipt) = tx_receipt {
             // Calculate the event topic by hashing the event signature
@@ -133,6 +145,14 @@ impl<P: Provider<Ethereum> + Clone> Cctp<P> {
                         .is_some_and(|topic| topic.as_slice() == message_sent_topic)
                 })
                 .ok_or_else(|| {
+                    spans::record_error_with_context(
+                        "MessageSentEventNotFound",
+                        "MessageSent event not found in transaction logs",
+                        Some(&format!(
+                            "Transaction contained {} logs but none matched MessageSent signature",
+                            tx_receipt.inner.logs().len()
+                        )),
+                    );
                     error!(
                         available_logs = tx_receipt.inner.logs().len(),
                         event = "message_sent_event_not_found"
@@ -156,6 +176,11 @@ impl<P: Provider<Ethereum> + Clone> Cctp<P> {
 
             Ok((message_sent_event, message_hash))
         } else {
+            spans::record_error_with_context(
+                "TransactionNotFound",
+                "Transaction receipt not found",
+                Some("The transaction may not have been mined yet or the RPC node doesn't have it"),
+            );
             error!(event = "transaction_not_found");
             Err(CctpError::TransactionFailed {
                 reason: "Transaction not found".to_string(),
@@ -204,7 +229,22 @@ impl<P: Provider<Ethereum> + Clone> Cctp<P> {
             let attempt_span = spans::get_attestation(&url, attempt);
             let _attempt_guard = attempt_span.enter();
 
-            let response = self.get_attestation(&client, &url).await?;
+            let response = match self.get_attestation(&client, &url).await {
+                Ok(r) => r,
+                Err(e) => {
+                    spans::record_error_with_context(
+                        "HttpRequestFailed",
+                        &format!("Failed to fetch attestation: {}", e),
+                        Some(&format!("Attempt {}/{}", attempt, max_attempts)),
+                    );
+                    error!(
+                        error = %e,
+                        attempt = attempt,
+                        event = "attestation_http_request_failed"
+                    );
+                    return Err(e);
+                }
+            };
 
             let status_code = response.status().as_u16();
             let process_span = spans::process_attestation_response(status_code, attempt);
@@ -250,8 +290,16 @@ impl<P: Provider<Ethereum> + Clone> Cctp<P> {
                 AttestationStatus::Complete => {
                     let attestation_bytes = attestation
                         .attestation
-                        .ok_or_else(|| CctpError::AttestationFailed {
-                            reason: "Attestation missing".to_string(),
+                        .ok_or_else(|| {
+                            spans::record_error_with_context(
+                                "AttestationDataMissing",
+                                "Attestation status is complete but attestation field is null",
+                                Some("This indicates an unexpected API response format"),
+                            );
+                            error!(event = "attestation_data_missing");
+                            CctpError::AttestationFailed {
+                                reason: "Attestation missing".to_string(),
+                            }
                         })?
                         .to_vec();
 
@@ -262,6 +310,13 @@ impl<P: Provider<Ethereum> + Clone> Cctp<P> {
                     return Ok(attestation_bytes);
                 }
                 AttestationStatus::Failed => {
+                    spans::record_error_with_context(
+                        "AttestationFailed",
+                        "Circle API returned failed status for attestation",
+                        Some(
+                            "The message may be invalid or the source transaction may have failed",
+                        ),
+                    );
                     error!(event = "attestation_failed");
                     return Err(CctpError::AttestationFailed {
                         reason: "Attestation failed".to_string(),
@@ -274,6 +329,17 @@ impl<P: Provider<Ethereum> + Clone> Cctp<P> {
             }
         }
 
+        spans::record_error_with_context(
+            "AttestationTimeout",
+            &format!(
+                "Attestation polling timed out after {} attempts",
+                max_attempts
+            ),
+            Some(&format!(
+                "Total duration: {} seconds",
+                max_attempts as u64 * poll_interval
+            )),
+        );
         error!(
             total_duration_secs = max_attempts as u64 * poll_interval,
             event = "attestation_timeout"

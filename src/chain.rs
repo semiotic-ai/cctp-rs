@@ -3,6 +3,7 @@ use alloy_primitives::Address;
 use tracing::error;
 
 use crate::error::{CctpError, Result};
+use crate::spans;
 
 use crate::domain_id::{
     ARBITRUM_DOMAIN_ID, AVALANCHE_DOMAIN_ID, BASE_DOMAIN_ID, ETHEREUM_DOMAIN_ID,
@@ -50,6 +51,11 @@ impl CctpV1 for NamedChain {
             Sepolia => Ok(60),
             ArbitrumSepolia | AvalancheFuji | BaseSepolia | OptimismSepolia | PolygonAmoy => Ok(20),
             _ => {
+                spans::record_error_with_context(
+                    "ChainNotSupported",
+                    &format!("Chain {} is not supported for CCTP", self),
+                    Some("Only Mainnet, Arbitrum, Base, Optimism, Unichain, Avalanche, Polygon and their testnets are supported"),
+                );
                 error!(
                     chain = %self.to_string(),
                     operation = "get_confirmation_time",
@@ -74,6 +80,11 @@ impl CctpV1 for NamedChain {
             Polygon => Ok(POLYGON_DOMAIN_ID),
             Unichain => Ok(UNICHAIN_DOMAIN_ID),
             _ => {
+                spans::record_error_with_context(
+                    "ChainNotSupported",
+                    &format!("Chain {} does not have a CCTP domain ID", self),
+                    Some("Check Circle's documentation for supported chains"),
+                );
                 error!(
                     chain = %self.to_string(),
                     operation = "get_domain_id",
@@ -101,6 +112,11 @@ impl CctpV1 for NamedChain {
             Polygon => Ok(POLYGON_CCTP_V1_TOKEN_MESSENGER),
             Unichain => Ok(UNICHAIN_CCTP_V1_TOKEN_MESSENGER),
             _ => {
+                spans::record_error_with_context(
+                    "ChainNotSupported",
+                    &format!("Chain {} does not have a TokenMessenger contract", self),
+                    Some("TokenMessenger contracts are only deployed on supported CCTP chains"),
+                );
                 error!(
                     chain = %self.to_string(),
                     operation = "get_token_messenger_address",
@@ -129,6 +145,11 @@ impl CctpV1 for NamedChain {
             Sepolia => Ok(ETHEREUM_SEPOLIA_MESSAGE_TRANSMITTER_ADDRESS),
             Unichain => Ok(UNICHAIN_CCTP_V1_MESSAGE_TRANSMITTER),
             _ => {
+                spans::record_error_with_context(
+                    "ChainNotSupported",
+                    &format!("Chain {} does not have a MessageTransmitter contract", self),
+                    Some("MessageTransmitter contracts are only deployed on supported CCTP chains"),
+                );
                 error!(
                     chain = %self.to_string(),
                     operation = "get_message_transmitter_address",

@@ -4,6 +4,8 @@
 //! MessageTransmitter contract, which handles cross-chain message verification
 //! and reception with finality-aware processing.
 
+#![allow(dead_code)] // Public API methods not used internally
+
 use alloy_network::Ethereum;
 use alloy_primitives::{Address, Bytes};
 use alloy_provider::Provider;
@@ -119,32 +121,13 @@ impl<P: Provider<Ethereum>> MessageTransmitterV2Contract<P> {
             .into_transaction_request()
     }
 
-    /// Query the finality threshold executed for a specific message
-    ///
-    /// Returns the actual finality level at which the message was attested.
-    ///
-    /// Note: This information is available in the MessageReceived event's
-    /// `finalityThresholdExecuted` field, but there's no dedicated view function
-    /// to query it. To get this value, parse the MessageReceived event logs.
-    #[allow(dead_code)]
-    pub async fn get_finality_threshold_executed(
-        &self,
-        message_hash: [u8; 32],
-    ) -> Result<u32, alloy_contract::Error> {
-        debug!(
-            message_hash = ?message_hash,
-            event = "get_finality_threshold_executed_called"
-        );
-        // Return standard finality as default since there's no view function
-        // Callers should parse MessageReceived events for the actual value
-        Ok(2000)
-    }
-
     /// Check if a message has been received (anti-replay protection)
     ///
     /// Queries the `usedNonces` mapping to determine if a message has already
     /// been processed. A non-zero value indicates the message was received.
-    #[allow(dead_code)]
+    ///
+    /// This is useful for checking replay protection before attempting to
+    /// receive a message on the destination chain.
     pub async fn is_message_received(
         &self,
         message_hash: [u8; 32],
@@ -163,7 +146,6 @@ impl<P: Provider<Ethereum>> MessageTransmitterV2Contract<P> {
     }
 
     /// Returns the contract address
-    #[allow(dead_code)]
     pub fn address(&self) -> Address {
         *self.instance.address()
     }

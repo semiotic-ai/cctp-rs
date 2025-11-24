@@ -4,6 +4,8 @@
 //! TokenMessenger contract, which manages USDC burn and mint operations with
 //! Fast Transfer and hooks support.
 
+#![allow(dead_code)] // Public API methods not used internally
+
 use alloy_network::Ethereum;
 use alloy_primitives::{Address, Bytes, U256};
 use alloy_provider::Provider;
@@ -228,25 +230,7 @@ impl<P: Provider<Ethereum>> TokenMessengerV2Contract<P> {
             .into_transaction_request()
     }
 
-    /// Get the minimum fee required for fast transfer on this chain
-    ///
-    /// Note: The v2 TokenMessenger contract does not expose a `getMinFeeAmount`
-    /// view function. Fee amounts are likely determined off-chain or through
-    /// the TokenMinter contract. This method returns 0 as a safe default.
-    ///
-    /// For production use, consult Circle's documentation for current fee structures
-    /// or query the fee configuration from off-chain sources.
-    #[allow(dead_code)]
-    pub async fn get_min_fee_amount(
-        &self,
-        _burn_amount: U256,
-    ) -> Result<U256, alloy_contract::Error> {
-        // No view function available in v2 ABI
-        Ok(U256::ZERO)
-    }
-
     /// Returns the contract address
-    #[allow(dead_code)]
     pub fn address(&self) -> Address {
         *self.instance.address()
     }

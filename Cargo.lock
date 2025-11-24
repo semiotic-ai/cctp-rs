@@ -1104,7 +1104,7 @@ dependencies = [
 
 [[package]]
 name = "cctp-rs"
-version = "0.11.0"
+version = "0.12.0"
 dependencies = [
  "alloy-chains",
  "alloy-contract",
@@ -1114,10 +1114,12 @@ dependencies = [
  "alloy-primitives",
  "alloy-provider",
  "alloy-rpc-types",
+ "alloy-signer-local",
  "alloy-sol-types",
  "alloy-transport",
  "async-trait",
  "bon",
+ "dotenvy",
  "insta",
  "reqwest",
  "rstest",
@@ -1411,6 +1413,12 @@ dependencies = [
  "quote",
  "syn 2.0.111",
 ]
+
+[[package]]
+name = "dotenvy"
+version = "0.15.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1aaf95b3e5c8f23aa320147307562d361db0ae0d51242340f558153b4eb2439b"
 
 [[package]]
 name = "dunce"

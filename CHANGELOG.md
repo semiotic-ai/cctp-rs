@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.12.0] - 2025-01-24
 
 ### Added
 
@@ -31,6 +31,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `v2_integration_validation` example for CI/CD validation (no network required)
   - Comprehensive examples: `v2_standard_transfer`, `v2_fast_transfer`
   - Testing guidelines documentation for maintaining test quality
+
+- **Contract Wrappers**: Direct access to type-safe contract interfaces
+  - Exported `TokenMessengerContract` (v1) for direct contract interaction
+  - Exported `TokenMessengerV2Contract` and `MessageTransmitterV2Contract` (v2)
+  - Enables advanced use cases beyond the bridge abstraction
+  - All wrappers include OpenTelemetry instrumentation built-in
 
 ### Changed
 

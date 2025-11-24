@@ -21,14 +21,17 @@ A production-ready Rust implementation of Circle's Cross-Chain Transfer Protocol
 ### CCTP v2 (Current)
 
 #### Mainnet
+
 - Ethereum, Arbitrum, Base, Optimism, Avalanche, Polygon, Unichain
 - Linea, Sonic, Sei (v2-only chains)
 
 #### Testnet
+
 - Sepolia, Arbitrum Sepolia, Base Sepolia, Optimism Sepolia
 - Avalanche Fuji, Polygon Amoy
 
 ### CCTP v1 (Legacy)
+
 Also supported for backwards compatibility
 
 ## Quick Start
@@ -37,7 +40,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-cctp-rs = "0.11.0"
+cctp-rs = "0.12.0"
 ```
 
 ### Basic Example
@@ -174,11 +177,13 @@ println!("Token Messenger: {}", token_messenger);
 Check out the [`examples/`](examples/) directory for complete working examples:
 
 ### CCTP v2 Examples
+
 - [`v2_integration_validation.rs`](examples/v2_integration_validation.rs) - Comprehensive v2 validation (no network required)
 - [`v2_standard_transfer.rs`](examples/v2_standard_transfer.rs) - Standard transfer with finality
 - [`v2_fast_transfer.rs`](examples/v2_fast_transfer.rs) - Fast transfer (<30s settlement)
 
 ### CCTP v1 Examples (Legacy)
+
 - [`basic_bridge.rs`](examples/basic_bridge.rs) - Simple USDC bridge example
 - [`attestation_monitoring.rs`](examples/attestation_monitoring.rs) - Monitor attestation status
 - [`multi_chain.rs`](examples/multi_chain.rs) - Bridge across multiple chains
@@ -215,6 +220,7 @@ cargo test --all-features
 ```
 
 All 149 unit tests validate:
+
 - Contract method selection logic
 - Domain ID resolution and mapping
 - Configuration validation
@@ -238,6 +244,7 @@ cargo run --example v2_fast_transfer
 ```
 
 The `v2_integration_validation` example validates:
+
 - Chain support matrix (26+ chains)
 - Domain ID mappings against Circle's official values
 - Contract address consistency (unified v2 addresses)
@@ -257,6 +264,7 @@ For pre-release validation on testnet:
 4. Execute and monitor the full flow
 
 **Note**: Integration tests requiring Circle's Iris API and live blockchains are not run in CI due to:
+
 - Cost (gas fees on every test run)
 - Time (10-15 minutes per transfer for attestation)
 - Flakiness (network dependencies and rate limits)

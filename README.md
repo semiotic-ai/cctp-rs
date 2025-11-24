@@ -10,29 +10,26 @@ A production-ready Rust implementation of Circle's Cross-Chain Transfer Protocol
 ## Features
 
 - 🚀 **Type-safe** contract interactions using Alloy
-- 🔄 **Multi-chain support** for mainnet and testnet networks
+- 🔄 **Multi-chain support** for 26+ mainnet and testnet networks
 - 📦 **Builder pattern** for intuitive API usage
+- ⚡ **CCTP v2 support** with fast transfers (<30s settlement)
+- 🎯 **Programmable hooks** for advanced use cases
+- 🔍 **Comprehensive observability** with OpenTelemetry integration
 
 ## Supported Chains
 
-### Mainnet
+### CCTP v2 (Current)
 
-- Ethereum
-- Arbitrum
-- Base
-- Optimism
-- Avalanche
-- Polygon
-- Unichain
+#### Mainnet
+- Ethereum, Arbitrum, Base, Optimism, Avalanche, Polygon, Unichain
+- Linea, Sonic, Sei (v2-only chains)
 
-### Testnet
+#### Testnet
+- Sepolia, Arbitrum Sepolia, Base Sepolia, Optimism Sepolia
+- Avalanche Fuji, Polygon Amoy
 
-- Sepolia
-- Arbitrum Sepolia
-- Base Sepolia
-- Optimism Sepolia
-- Avalanche Fuji
-- Polygon Amoy
+### CCTP v1 (Legacy)
+Also supported for backwards compatibility
 
 ## Quick Start
 
@@ -40,7 +37,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-cctp-rs = "0.10.0"
+cctp-rs = "0.11.0"
 ```
 
 ### Basic Example
@@ -176,6 +173,12 @@ println!("Token Messenger: {}", token_messenger);
 
 Check out the [`examples/`](examples/) directory for complete working examples:
 
+### CCTP v2 Examples
+- [`v2_integration_validation.rs`](examples/v2_integration_validation.rs) - Comprehensive v2 validation (no network required)
+- [`v2_standard_transfer.rs`](examples/v2_standard_transfer.rs) - Standard transfer with finality
+- [`v2_fast_transfer.rs`](examples/v2_fast_transfer.rs) - Fast transfer (<30s settlement)
+
+### CCTP v1 Examples (Legacy)
 - [`basic_bridge.rs`](examples/basic_bridge.rs) - Simple USDC bridge example
 - [`attestation_monitoring.rs`](examples/attestation_monitoring.rs) - Monitor attestation status
 - [`multi_chain.rs`](examples/multi_chain.rs) - Bridge across multiple chains
@@ -183,6 +186,11 @@ Check out the [`examples/`](examples/) directory for complete working examples:
 Run examples with:
 
 ```bash
+# Recommended: Run v2 integration validation
+cargo run --example v2_integration_validation
+
+# Or run specific examples
+cargo run --example v2_fast_transfer
 cargo run --example basic_bridge
 ```
 
@@ -198,11 +206,63 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## Testing
 
-Run the test suite:
+### Unit Tests
+
+Run the full test suite with:
 
 ```bash
-cargo test
+cargo test --all-features
 ```
+
+All 149 unit tests validate:
+- Contract method selection logic
+- Domain ID resolution and mapping
+- Configuration validation
+- URL construction for Circle's Iris API
+- Error handling and edge cases
+- Cross-chain compatibility
+- Fast transfer support
+- Hooks integration
+
+### Integration Validation
+
+We provide comprehensive runnable examples that validate the complete v2 API without requiring network access:
+
+```bash
+# Validate all v2 configurations (no network required)
+cargo run --example v2_integration_validation
+
+# Educational examples showing complete flows
+cargo run --example v2_standard_transfer
+cargo run --example v2_fast_transfer
+```
+
+The `v2_integration_validation` example validates:
+- Chain support matrix (26+ chains)
+- Domain ID mappings against Circle's official values
+- Contract address consistency (unified v2 addresses)
+- Bridge configuration variations (standard, fast, hooks)
+- API endpoint construction (mainnet vs testnet)
+- Fast transfer support and fee structures
+- Error handling for unsupported chains
+- Cross-chain compatibility
+
+### Live Testnet Testing
+
+For pre-release validation on testnet:
+
+1. Get testnet tokens from [Circle's faucet](https://faucet.circle.com)
+2. Update examples with your addresses and RPC endpoints
+3. Set environment variables for private keys
+4. Execute and monitor the full flow
+
+**Note**: Integration tests requiring Circle's Iris API and live blockchains are not run in CI due to:
+- Cost (gas fees on every test run)
+- Time (10-15 minutes per transfer for attestation)
+- Flakiness (network dependencies and rate limits)
+- Complexity (requires funded wallets with private keys)
+
+Instead, we validate via extensive unit tests and runnable examples. This approach ensures reliability while maintaining fast CI/CD pipelines.
 
 ## License
 

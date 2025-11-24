@@ -5,6 +5,50 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **CCTP v2 Support**: Complete implementation of Circle's CCTP v2 protocol
+  - Support for 26+ chains (10 mainnet, 6 testnet v2 chains + v1 chains)
+  - New v2-only chains: Linea, Sonic, Sei
+  - `CctpV2Bridge` and `CctpV2` traits with unified contract addresses
+  - Comprehensive test suite with 149 unit tests (100% pass rate)
+
+- **Fast Transfers**: Sub-30 second settlement with optimized finality thresholds
+  - Standard transfers: 2000 confirmations (finalized)
+  - Fast transfers: 1000 confirmations (confirmed)
+  - Optional fee support for fast finality
+  - Smart contract method selection based on configuration
+
+- **Programmable Hooks**: Advanced integration capabilities
+  - `depositForBurnWithHook()` support for custom destination logic
+  - Hook data validation and configuration
+  - Priority handling when combined with fast transfers
+
+- **Enhanced Testing Infrastructure**
+  - 149 comprehensive unit tests covering all business logic
+  - `v2_integration_validation` example for CI/CD validation (no network required)
+  - Comprehensive examples: `v2_standard_transfer`, `v2_fast_transfer`
+  - Testing guidelines documentation for maintaining test quality
+
+### Changed
+
+- **BREAKING**: New trait system for v1/v2 polymorphism
+  - `CctpBridge` trait enables version-independent code
+  - `CctpV1` and `CctpV2` traits for version-specific configuration
+  - Clean separation between v1 (legacy) and v2 (current) implementations
+
+- v2-specific modules added: `bridge/v2.rs`, `chain/v2.rs`, `contracts/v2/`
+
+### Documentation
+
+- Added comprehensive testing strategy section to README
+- Documented integration test limitations and pragmatic approach
+- Added v2-specific usage examples
+- Created testing-guidelines.md for maintaining test quality
+- Documented fast transfer behavior and fee structures
+
 ## [0.11.0] - 2025-01-24
 
 ### Changed

@@ -5,6 +5,12 @@ pub enum CctpError {
     #[error("Chain not supported: {chain}")]
     ChainNotSupported { chain: String },
 
+    #[error("Unsupported chain: {0:?}")]
+    UnsupportedChain(alloy_chains::NamedChain),
+
+    #[error("Not implemented: {0}")]
+    NotImplemented(String),
+
     #[error("Network error: {0}")]
     Network(#[from] reqwest::Error),
 

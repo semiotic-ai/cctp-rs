@@ -88,3 +88,57 @@ pub const POLYGON_CCTP_V1_TOKEN_MESSENGER: Address =
 /// <https://uniscan.xyz/address/0x4e744b28E787c3aD0e810eD65A24461D4ac5a762>
 pub const UNICHAIN_CCTP_V1_TOKEN_MESSENGER: Address =
     address!("4e744b28E787c3aD0e810eD65A24461D4ac5a762");
+
+// =============================================================================
+// CCTP V2 Contract Addresses
+// =============================================================================
+//
+// V2 uses unified contract addresses across all chains within each environment.
+// This is a major improvement over V1, simplifying integration and reducing
+// configuration complexity.
+//
+// Reference: <https://developers.circle.com/cctp/evm-smart-contracts>
+
+/// CCTP V2 MessageTransmitter address (Mainnet)
+///
+/// Used across ALL v2 mainnet chains including:
+/// - Linea (Domain 11)
+/// - Sonic (Domain 13)
+/// - And other v2-supported mainnets
+///
+/// <https://developers.circle.com/cctp/evm-smart-contracts>
+pub const CCTP_V2_MESSAGE_TRANSMITTER_MAINNET: Address =
+    address!("81D40F21F12A8F0E3252Bccb954D722d4c464B64");
+
+/// CCTP V2 TokenMessenger address (Mainnet)
+///
+/// Used across ALL v2 mainnet chains including:
+/// - Linea (Domain 11)
+/// - Sonic (Domain 13)
+/// - And other v2-supported mainnets
+///
+/// <https://developers.circle.com/cctp/evm-smart-contracts>
+pub const CCTP_V2_TOKEN_MESSENGER_MAINNET: Address =
+    address!("28b5a0e9C621a5BadaA536219b3a228C8168cf5d");
+
+/// CCTP V2 MessageTransmitter address (Testnet)
+///
+/// Used across ALL v2 testnet chains including:
+/// - Linea Sepolia (Domain 11)
+/// - Sonic Testnet (Domain 13)
+/// - And other v2-supported testnets
+///
+/// <https://developers.circle.com/cctp/evm-smart-contracts>
+pub const CCTP_V2_MESSAGE_TRANSMITTER_TESTNET: Address =
+    address!("E737e5cEBEEBa77EFE34D4aa090756590b1CE275");
+
+/// CCTP V2 TokenMessenger address (Testnet)
+///
+/// Used across ALL v2 testnet chains including:
+/// - Linea Sepolia (Domain 11)
+/// - Sonic Testnet (Domain 13)
+/// - And other v2-supported testnets
+///
+/// <https://developers.circle.com/cctp/evm-smart-contracts>
+pub const CCTP_V2_TOKEN_MESSENGER_TESTNET: Address =
+    address!("8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA");

@@ -55,10 +55,13 @@ mod error;
 mod protocol;
 
 // Public API - minimal surface for 1.0.0 stability
-pub use bridge::{BridgeParams, Cctp};
-pub use chain::CctpV1;
+pub use bridge::{BridgeParams, Cctp, CctpBridge};
+pub use chain::{CctpV1, CctpV2};
 pub use error::{CctpError, Result};
-pub use protocol::{AttestationBytes, AttestationResponse, AttestationStatus, DomainId};
+pub use protocol::{
+    AttestationBytes, AttestationResponse, AttestationStatus, BurnMessageV2, DomainId,
+    FinalityThreshold, MessageHeader,
+};
 
 // Public module for advanced users who need custom instrumentation
 pub mod spans;

@@ -1116,6 +1116,7 @@ dependencies = [
  "alloy-rpc-types",
  "alloy-sol-types",
  "alloy-transport",
+ "async-trait",
  "bon",
  "insta",
  "reqwest",

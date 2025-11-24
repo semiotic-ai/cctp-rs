@@ -3,9 +3,11 @@
 //! This module provides the primary types and functionality for bridging USDC across
 //! chains using Circle's Cross-Chain Transfer Protocol (CCTP).
 
+mod bridge_trait;
 mod cctp;
 mod config;
 mod params;
 
+pub use bridge_trait::CctpBridge;
 pub use cctp::Cctp;
 pub use params::BridgeParams;

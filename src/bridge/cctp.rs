@@ -6,6 +6,7 @@ use alloy_network::Ethereum;
 use alloy_primitives::{hex, Address, FixedBytes, TxHash};
 use alloy_provider::Provider;
 use alloy_sol_types::SolEvent;
+use async_trait::async_trait;
 use bon::Builder;
 use reqwest::{Client, Response};
 use std::time::Duration;
@@ -13,6 +14,7 @@ use tokio::time::sleep;
 use tracing::{debug, error, info};
 use url::Url;
 
+use super::bridge_trait::CctpBridge;
 use super::config::{ATTESTATION_PATH_V1, IRIS_API, IRIS_API_SANDBOX};
 use crate::contracts::message_transmitter::MessageTransmitter::MessageSent;
 
@@ -400,6 +402,38 @@ impl<P: Provider<Ethereum> + Clone> Cctp<P> {
             .await
             .map_err(CctpError::Network)
     }
+}
+
+// Implement CctpBridge trait for v1 Cctp struct
+#[async_trait]
+impl<P: Provider<Ethereum> + Clone> CctpBridge for Cctp<P> {
+    fn source_chain(&self) -> NamedChain {
+        self.source_chain
+    }
+
+    fn destination_chain(&self) -> NamedChain {
+        self.destination_chain
+    }
+
+    fn recipient(&self) -> Address {
+        self.recipient
+    }
+
+    async fn get_message_sent_event(&self, tx_hash: TxHash) -> Result<(Vec<u8>, FixedBytes<32>)> {
+        self.get_message_sent_event(tx_hash).await
+    }
+
+    async fn get_attestation_with_retry(
+        &self,
+        message_hash: FixedBytes<32>,
+        max_attempts: Option<u32>,
+        poll_interval: Option<u64>,
+    ) -> Result<AttestationBytes> {
+        self.get_attestation_with_retry(message_hash, max_attempts, poll_interval)
+            .await
+    }
+
+    // V2-specific methods use default implementations (all return false/None for v1)
 }
 
 #[cfg(test)]

@@ -48,20 +48,17 @@
 //! - [`CctpV1`] - Trait for chain-specific configurations
 //! - [`CctpError`] and [`Result`] - Error types for error handling
 
-mod attestation;
 mod bridge;
 mod chain;
-mod domain_id;
+mod contracts;
 mod error;
-mod message_transmitter;
-mod token_messenger;
+mod protocol;
 
 // Public API - minimal surface for 1.0.0 stability
-pub use attestation::{AttestationBytes, AttestationResponse, AttestationStatus};
 pub use bridge::{BridgeParams, Cctp};
 pub use chain::CctpV1;
-pub use domain_id::DomainId;
 pub use error::{CctpError, Result};
+pub use protocol::{AttestationBytes, AttestationResponse, AttestationStatus, DomainId};
 
 // Public module for advanced users who need custom instrumentation
 pub mod spans;

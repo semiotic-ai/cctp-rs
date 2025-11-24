@@ -14,7 +14,7 @@ use tracing::{debug, error, info};
 use url::Url;
 
 use super::config::{ATTESTATION_PATH_V1, IRIS_API, IRIS_API_SANDBOX};
-use crate::message_transmitter::MessageTransmitter::MessageSent;
+use crate::contracts::message_transmitter::MessageTransmitter::MessageSent;
 
 /// CCTP v1 bridge implementation
 ///

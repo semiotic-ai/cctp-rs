@@ -5,10 +5,7 @@ use tracing::error;
 use crate::error::{CctpError, Result};
 use crate::spans;
 
-use crate::domain_id::{
-    ARBITRUM_DOMAIN_ID, AVALANCHE_DOMAIN_ID, BASE_DOMAIN_ID, ETHEREUM_DOMAIN_ID,
-    OPTIMISM_DOMAIN_ID, POLYGON_DOMAIN_ID, UNICHAIN_DOMAIN_ID,
-};
+use crate::domain_id::DomainId;
 use crate::message_transmitter::{
     ARBITRUM_MESSAGE_TRANSMITTER_ADDRESS, ARBITRUM_SEPOLIA_MESSAGE_TRANSMITTER_ADDRESS,
     AVALANCHE_MESSAGE_TRANSMITTER_ADDRESS, BASE_MESSAGE_TRANSMITTER_ADDRESS,
@@ -29,7 +26,7 @@ pub trait CctpV1 {
     /// The average time to confirmation of the chain, according to the CCTP docs: <https://developers.circle.com/stablecoins/required-block-confirmations>
     fn confirmation_average_time_seconds(&self) -> Result<u64>;
     /// The domain ID of the chain - used to identify the chain when bridging: <https://developers.circle.com/stablecoins/evm-smart-contracts>
-    fn cctp_domain_id(&self) -> Result<u32>;
+    fn cctp_domain_id(&self) -> Result<DomainId>;
     /// The address of the `TokenMessenger` contract on the chain
     fn token_messenger_address(&self) -> Result<Address>;
     /// The address of the `MessageTransmitter` contract on the chain
@@ -68,21 +65,21 @@ impl CctpV1 for NamedChain {
         }
     }
 
-    fn cctp_domain_id(&self) -> Result<u32> {
+    fn cctp_domain_id(&self) -> Result<DomainId> {
         use NamedChain::*;
 
         match self {
-            Arbitrum | ArbitrumSepolia => Ok(ARBITRUM_DOMAIN_ID),
-            Avalanche => Ok(AVALANCHE_DOMAIN_ID),
-            Base | BaseSepolia => Ok(BASE_DOMAIN_ID),
-            Mainnet | Sepolia => Ok(ETHEREUM_DOMAIN_ID),
-            Optimism => Ok(OPTIMISM_DOMAIN_ID),
-            Polygon => Ok(POLYGON_DOMAIN_ID),
-            Unichain => Ok(UNICHAIN_DOMAIN_ID),
+            Arbitrum | ArbitrumSepolia => Ok(DomainId::Arbitrum),
+            Avalanche => Ok(DomainId::Avalanche),
+            Base | BaseSepolia => Ok(DomainId::Base),
+            Mainnet | Sepolia => Ok(DomainId::Ethereum),
+            Optimism => Ok(DomainId::Optimism),
+            Polygon => Ok(DomainId::Polygon),
+            Unichain => Ok(DomainId::Unichain),
             _ => {
                 spans::record_error_with_context(
                     "ChainNotSupported",
-                    &format!("Chain {} does not have a CCTP domain ID", self),
+                    &format!("Chain {self} does not have a CCTP domain ID"),
                     Some("Check Circle's documentation for supported chains"),
                 );
                 error!(
@@ -242,17 +239,17 @@ mod tests {
     }
 
     #[rstest]
-    #[case(NamedChain::Arbitrum, ARBITRUM_DOMAIN_ID)]
-    #[case(NamedChain::ArbitrumSepolia, ARBITRUM_DOMAIN_ID)]
-    #[case(NamedChain::Avalanche, AVALANCHE_DOMAIN_ID)]
-    #[case(NamedChain::Base, BASE_DOMAIN_ID)]
-    #[case(NamedChain::BaseSepolia, BASE_DOMAIN_ID)]
-    #[case(NamedChain::Mainnet, ETHEREUM_DOMAIN_ID)]
-    #[case(NamedChain::Sepolia, ETHEREUM_DOMAIN_ID)]
-    #[case(NamedChain::Optimism, OPTIMISM_DOMAIN_ID)]
-    #[case(NamedChain::Polygon, POLYGON_DOMAIN_ID)]
-    #[case(NamedChain::Unichain, UNICHAIN_DOMAIN_ID)]
-    fn test_cctp_domain_id_supported_chains(#[case] chain: NamedChain, #[case] expected: u32) {
+    #[case(NamedChain::Arbitrum, DomainId::Arbitrum)]
+    #[case(NamedChain::ArbitrumSepolia, DomainId::Arbitrum)]
+    #[case(NamedChain::Avalanche, DomainId::Avalanche)]
+    #[case(NamedChain::Base, DomainId::Base)]
+    #[case(NamedChain::BaseSepolia, DomainId::Base)]
+    #[case(NamedChain::Mainnet, DomainId::Ethereum)]
+    #[case(NamedChain::Sepolia, DomainId::Ethereum)]
+    #[case(NamedChain::Optimism, DomainId::Optimism)]
+    #[case(NamedChain::Polygon, DomainId::Polygon)]
+    #[case(NamedChain::Unichain, DomainId::Unichain)]
+    fn test_cctp_domain_id_supported_chains(#[case] chain: NamedChain, #[case] expected: DomainId) {
         assert_eq!(chain.cctp_domain_id().unwrap(), expected);
     }
 

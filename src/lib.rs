@@ -60,6 +60,7 @@ mod token_messenger;
 pub use attestation::{AttestationBytes, AttestationResponse, AttestationStatus};
 pub use bridge::{BridgeParams, Cctp};
 pub use chain::CctpV1;
+pub use domain_id::DomainId;
 pub use error::{CctpError, Result};
 
 // Public module for advanced users who need custom instrumentation

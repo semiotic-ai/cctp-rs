@@ -1,5 +1,5 @@
 use crate::error::{CctpError, Result};
-use crate::spans;
+use crate::{spans, DomainId};
 use crate::{AttestationBytes, AttestationResponse, AttestationStatus, CctpV1};
 use alloy_chains::NamedChain;
 use alloy_network::Ethereum;
@@ -68,7 +68,7 @@ impl<P: Provider<Ethereum> + Clone> Cctp<P> {
     }
 
     /// Returns the destination domain id
-    pub fn destination_domain_id(&self) -> Result<u32> {
+    pub fn destination_domain_id(&self) -> Result<DomainId> {
         self.destination_chain.cctp_domain_id()
     }
 

@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.13.0] - 2025-01-24
+
+### Added
+
+- **v1 MessageTransmitterContract**: Exposed `MessageTransmitterContract` in the public API
+  - `receive_message_transaction()` for receiving cross-chain messages with attestation
+  - `is_nonce_used()` for checking anti-replay protection
+  - Matches v2 API symmetry for consistent developer experience
+
+### Changed
+
+- Removed unnecessary `#[allow(dead_code)]` attributes from public contract wrappers
+  - Applies to `TokenMessengerContract`, `MessageTransmitterContract` (v1)
+  - Applies to `TokenMessengerV2Contract`, `MessageTransmitterV2Contract` (v2)
+
 ## [0.12.0] - 2025-01-24
 
 ### Added

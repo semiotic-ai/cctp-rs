@@ -5,6 +5,63 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.14.0] - 2025-11-25
+
+### Added
+
+- **ERC20 Contract Wrapper**: New `Erc20Contract` for token approval and allowance operations
+  - `approve()` for granting token spending permission before CCTP burns
+  - `allowance()` for checking current approval amounts
+  - Essential for the complete CCTP transfer workflow
+  - Exposed publicly for direct use
+
+- **Public Chain Addresses Module**: Exposed `chain::addresses` module for accessing contract addresses directly
+
+- **V2-specific span function**: Added `get_v2_attestation_with_retry` for proper v2 observability with `TxHash` instead of message hash
+
+### Changed
+
+- **BREAKING**: Simplified attestation API with type-safe methods per version
+  - V1 `Cctp`: `get_attestation(message_hash, ...)` - takes message hash directly
+  - V2 `CctpV2`: `get_attestation(tx_hash, ...)` - takes transaction hash directly
+  - Removed `AttestationQuery` enum in favor of compile-time type safety
+  - Method signatures now clearly indicate what parameters are needed
+
+- **BREAKING**: V2 `get_attestation()` now returns `(Vec<u8>, AttestationBytes)` instead of just `AttestationBytes`
+  - Always returns both the canonical message and attestation from Circle's API
+  - Eliminates foot-gun where users might use wrong message for minting
+  - The `MessageSent` event log contains zeros in the nonce field; Circle fills this in before signing
+
+- **BREAKING**: Removed `get_attestation_with_message()` from V2 - use `get_attestation()` instead
+
+### Removed
+
+- **BREAKING**: Removed `BridgeParams` from public API (was unused)
+
+### Fixed
+
+- Fixed v2 API path: renamed constant to `MESSAGES_PATH_V2` reflecting the actual endpoint format
+- V2 now correctly uses `/v2/messages/{domain}?transactionHash={tx}` format
+- Fixed critical v2 attestation bug: MessageSent event contains template message with zero nonce; now always uses canonical message from Circle's API
+
+### Migration Guide
+
+```rust
+// V1 - Before (0.13.0)
+bridge.get_attestation(AttestationQuery::by_message_hash(hash), max_attempts, poll_interval).await?;
+
+// V1 - After (0.14.0)
+let attestation = bridge.get_attestation(hash, None, None).await?;
+
+// V2 - Before (0.13.0)
+let attestation = bridge.get_attestation(tx_hash, None, None).await?;
+let (message, _hash) = bridge.get_message_sent_event(tx_hash).await?; // BUG: wrong message!
+
+// V2 - After (0.14.0)
+let (message, attestation) = bridge.get_attestation(tx_hash, None, None).await?;
+// Now use `message` (canonical from Circle API) for minting - this is the correct message!
+```
+
 ## [0.13.0] - 2025-01-24
 
 ### Added

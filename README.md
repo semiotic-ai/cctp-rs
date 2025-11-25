@@ -40,7 +40,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-cctp-rs = "0.13.0"
+cctp-rs = "0.14.0"
 ```
 
 ### Basic Example
@@ -80,39 +80,58 @@ async fn main() -> Result<(), CctpError> {
 }
 ```
 
-### Bridging USDC
+### Bridging USDC (V1)
 
 ```rust
-use cctp_rs::{Cctp, BridgeParams, CctpError};
+use cctp_rs::{Cctp, CctpError};
 use alloy_chains::NamedChain;
 use alloy_primitives::{Address, U256};
+use alloy_provider::Provider;
 
-async fn bridge_usdc(bridge: &Cctp<impl Provider>) -> Result<(), CctpError> {
-    // Step 1: Prepare bridge parameters
-    let params = BridgeParams::builder()
-        .from_address("0xYourAddress".parse()?)
-        .recipient("0xRecipientAddress".parse()?)
-        .token_address("0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48".parse()?) // USDC on Ethereum
-        .amount(U256::from(1_000_000)) // 1 USDC (6 decimals)
-        .build();
+async fn bridge_usdc_v1<P: Provider + Clone>(bridge: &Cctp<P>) -> Result<(), CctpError> {
+    // Step 1: Burn USDC on source chain (get tx hash from your burn transaction)
+    let burn_tx_hash = "0x...".parse()?;
 
-    // Step 2: Approve USDC spending (implement this based on your provider)
-    // approve_usdc_spending(&params).await?;
-
-    // Step 3: Burn USDC on source chain (get tx hash)
-    let burn_tx_hash = "0x...".parse()?; // From your burn transaction
-
-    // Step 4: Get message and attestation
+    // Step 2: Get message and message hash from the burn transaction
     let (message, message_hash) = bridge.get_message_sent_event(burn_tx_hash).await?;
-    
-    // Step 5: Wait for attestation
-    let attestation = bridge.get_attestation(&message_hash, None, None).await?;
-    
-    println!("Bridge successful! Attestation: {:?}", attestation);
-    
-    // Step 6: Mint on destination chain using the attestation
+
+    // Step 3: Wait for attestation from Circle's API
+    let attestation = bridge.get_attestation(message_hash, None, None).await?;
+
+    println!("V1 Bridge successful!");
+    println!("Message: {} bytes", message.len());
+    println!("Attestation: {} bytes", attestation.len());
+
+    // Step 4: Mint on destination chain using message + attestation
     // mint_on_destination(&message, &attestation).await?;
-    
+
+    Ok(())
+}
+```
+
+### Bridging USDC (V2 - Recommended)
+
+```rust
+use cctp_rs::{CctpV2Bridge, CctpError};
+use alloy_chains::NamedChain;
+use alloy_primitives::{Address, U256};
+use alloy_provider::Provider;
+
+async fn bridge_usdc_v2<P: Provider + Clone>(bridge: &CctpV2Bridge<P>) -> Result<(), CctpError> {
+    // Step 1: Burn USDC on source chain (get tx hash from your burn transaction)
+    let burn_tx_hash = "0x...".parse()?;
+
+    // Step 2: Get canonical message AND attestation from Circle's API
+    // Note: V2 returns both because the on-chain message has zeros in the nonce field
+    let (message, attestation) = bridge.get_attestation(burn_tx_hash, None, None).await?;
+
+    println!("V2 Bridge successful!");
+    println!("Message: {} bytes", message.len());
+    println!("Attestation: {} bytes", attestation.len());
+
+    // Step 3: Mint on destination chain using message + attestation
+    // bridge.mint(message, attestation, recipient).await?;
+
     Ok(())
 }
 ```
@@ -132,13 +151,24 @@ The library is organized into several key modules:
 cctp-rs provides detailed error types for different failure scenarios:
 
 ```rust
-use cctp_rs::{CctpError, Cctp};
+use cctp_rs::CctpError;
 
-match bridge.get_attestation(&message_hash, None, None).await {
-    Ok(attestation) => println!("Success: {:?}", attestation),
+// V1 example
+match bridge.get_attestation(message_hash, None, None).await {
+    Ok(attestation) => println!("Success: {} bytes", attestation.len()),
     Err(CctpError::AttestationTimeout) => println!("Timeout waiting for attestation"),
     Err(CctpError::ChainNotSupported { chain }) => println!("Chain {} not supported", chain),
     Err(e) => println!("Other error: {}", e),
+}
+
+// V2 example (returns both message and attestation)
+match v2_bridge.get_attestation(tx_hash, None, None).await {
+    Ok((message, attestation)) => {
+        println!("Message: {} bytes", message.len());
+        println!("Attestation: {} bytes", attestation.len());
+    }
+    Err(CctpError::AttestationTimeout) => println!("Timeout waiting for attestation"),
+    Err(e) => println!("Error: {}", e),
 }
 ```
 
@@ -147,9 +177,16 @@ match bridge.get_attestation(&message_hash, None, None).await {
 ### Custom Polling Configuration
 
 ```rust
-// Wait up to 10 minutes with 30-second intervals
+// V1: Wait up to 10 minutes with 30-second intervals
 let attestation = bridge.get_attestation(
-    &message_hash,
+    message_hash,
+    Some(20),        // max attempts
+    Some(30),        // poll interval in seconds
+).await?;
+
+// V2: Same parameters, but returns (message, attestation)
+let (message, attestation) = v2_bridge.get_attestation(
+    tx_hash,
     Some(20),        // max attempts
     Some(30),        // poll interval in seconds
 ).await?;
@@ -219,7 +256,7 @@ Run the full test suite with:
 cargo test --all-features
 ```
 
-All 149 unit tests validate:
+All 154 unit tests validate:
 
 - Contract method selection logic
 - Domain ID resolution and mapping

@@ -40,7 +40,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-cctp-rs = "0.14.0"
+cctp-rs = "0.15.0"
 ```
 
 ### Basic Example
@@ -195,18 +195,23 @@ let (message, attestation) = v2_bridge.get_attestation(
 ### Chain Configuration
 
 ```rust
-use cctp_rs::CctpV1;
+use cctp_rs::{CctpV1, CctpV2};
 use alloy_chains::NamedChain;
 
-// Get chain-specific information
+// Get v1 chain-specific information
 let chain = NamedChain::Arbitrum;
-let confirmation_time = chain.confirmation_average_time_seconds()?;
+let confirmation_time = chain.confirmation_average_time_seconds()?; // Standard: 19 minutes
 let domain_id = chain.cctp_domain_id()?;
 let token_messenger = chain.token_messenger_address()?;
 
-println!("Arbitrum confirmation time: {} seconds", confirmation_time);
-println!("Domain ID: {}", domain_id);
-println!("Token Messenger: {}", token_messenger);
+println!("Arbitrum V1 confirmation time: {} seconds", confirmation_time);
+
+// Get v2 attestation times (choose based on transfer mode)
+let fast_time = chain.fast_transfer_confirmation_time_seconds()?;     // ~8 seconds
+let standard_time = chain.standard_transfer_confirmation_time_seconds()?; // ~19 minutes
+
+println!("V2 Fast Transfer: {} seconds", fast_time);
+println!("V2 Standard Transfer: {} seconds", standard_time);
 ```
 
 ## Examples

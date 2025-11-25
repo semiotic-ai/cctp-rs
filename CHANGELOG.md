@@ -5,6 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.15.0] - 2025-11-25
+
+### Changed
+
+- **BREAKING**: Replaced `confirmation_average_time_seconds()` in `CctpV2` trait with two explicit methods:
+  - `fast_transfer_confirmation_time_seconds()` - Returns attestation times with Fast Transfer enabled (5-20 seconds)
+  - `standard_transfer_confirmation_time_seconds()` - Returns attestation times for Standard Transfer (5 seconds to 8 hours)
+
+### Fixed
+
+- Fixed v2 `CctpV2` trait returning block production times instead of Circle attestation times
+  - Previously returned 1-12 seconds (block times)
+  - Now returns actual attestation confirmation times based on Circle's documentation
+  - Fast Transfer: Ethereum 20s, most chains 8s, high-perf chains 5s
+  - Standard Transfer: Ethereum/L2s 19min, Avalanche 20s, Polygon 8min, Linea 8hrs
+
+### Migration Guide
+
+```rust
+// Before (0.14.0)
+let time = chain.confirmation_average_time_seconds()?; // Returned block times (wrong!)
+
+// After (0.15.0)
+// Choose based on your transfer mode:
+let time = chain.fast_transfer_confirmation_time_seconds()?;     // Fast Transfer
+let time = chain.standard_transfer_confirmation_time_seconds()?; // Standard (default)
+```
+
 ## [0.14.0] - 2025-11-25
 
 ### Added

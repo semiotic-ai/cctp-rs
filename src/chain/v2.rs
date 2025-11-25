@@ -74,10 +74,32 @@ pub trait CctpV2 {
     /// existed in v1. New v2-only chains have domain IDs >= 11.
     fn cctp_v2_domain_id(&self) -> Result<DomainId>;
 
-    /// Returns the average confirmation time in seconds for this chain
+    /// Returns the average Fast Transfer attestation time in seconds
     ///
-    /// Used to determine polling intervals for transaction confirmations.
-    fn confirmation_average_time_seconds(&self) -> Result<u64>;
+    /// Fast Transfer uses a lower finality threshold (≤1000) to achieve
+    /// rapid attestations at the cost of a small fee on some chains.
+    ///
+    /// Typical times:
+    /// - Ethereum: ~20 seconds (2 block confirmations)
+    /// - Most L2s and alt-L1s: ~8 seconds (1 block confirmation)
+    /// - High-performance chains (Sonic, Sei): ~5 seconds
+    ///
+    /// See: <https://developers.circle.com/stablecoins/required-block-confirmations>
+    fn fast_transfer_confirmation_time_seconds(&self) -> Result<u64>;
+
+    /// Returns the average Standard Transfer attestation time in seconds
+    ///
+    /// Standard Transfer waits for full chain finality before Circle's Iris
+    /// service provides an attestation. This is the default behavior.
+    ///
+    /// Typical times:
+    /// - Ethereum + L2s settling to Ethereum: 13-19 minutes (~65 ETH blocks)
+    /// - Avalanche, Polygon: 5-20 seconds (native finality)
+    /// - Sei, Sonic: ~5 seconds (high-performance chains)
+    /// - Linea: 6-32 hours (zkEVM proof generation)
+    ///
+    /// See: <https://developers.circle.com/stablecoins/required-block-confirmations>
+    fn standard_transfer_confirmation_time_seconds(&self) -> Result<u64>;
 }
 
 impl CctpV2 for NamedChain {
@@ -178,35 +200,62 @@ impl CctpV2 for NamedChain {
         })
     }
 
-    fn confirmation_average_time_seconds(&self) -> Result<u64> {
+    fn fast_transfer_confirmation_time_seconds(&self) -> Result<u64> {
         if !self.supports_cctp_v2() {
             return Err(CctpError::UnsupportedChain(*self));
         }
 
+        // Fast Transfer attestation times (1-2 block confirmations)
+        // Based on Circle docs: https://developers.circle.com/stablecoins/required-block-confirmations
         Ok(match self {
-            // Ethereum: ~12 seconds per block
-            Self::Mainnet | Self::Sepolia => 12,
-            // Arbitrum: ~0.25 seconds per block
-            Self::Arbitrum | Self::ArbitrumSepolia => 1,
-            // Base: ~2 seconds per block
-            Self::Base | Self::BaseSepolia => 2,
-            // Optimism: ~2 seconds per block
-            Self::Optimism | Self::OptimismSepolia => 2,
-            // Avalanche: ~2 seconds per block
-            Self::Avalanche | Self::AvalancheFuji => 2,
-            // Polygon: ~2 seconds per block
-            Self::Polygon | Self::PolygonAmoy => 2,
-            // Unichain: ~2 seconds per block (Optimism-based)
-            Self::Unichain => 2,
-            // Linea: ~2 seconds per block (zkEVM)
-            Self::Linea => 2,
-            // Sonic: High-performance, assume ~1 second
-            Self::Sonic => 1,
-            // TODO: Add BNB Smart Chain once available in alloy_chains
-            // Self::Bsc => 3,
-            // Sei: Parallel EVM, ~0.4 seconds per block
-            Self::Sei => 1,
-            // This is unreachable due to supports_cctp_v2() check above
+            // Ethereum: ~20 seconds (2 block confirmations)
+            Self::Mainnet | Self::Sepolia => 20,
+            // Arbitrum: ~8 seconds (1 block confirmation)
+            Self::Arbitrum | Self::ArbitrumSepolia => 8,
+            // Base: ~8 seconds (1 block confirmation)
+            Self::Base | Self::BaseSepolia => 8,
+            // Optimism: ~8 seconds (1 block confirmation)
+            Self::Optimism | Self::OptimismSepolia => 8,
+            // Avalanche: ~8 seconds (1 block confirmation)
+            Self::Avalanche | Self::AvalancheFuji => 8,
+            // Polygon: ~8 seconds (1 block confirmation)
+            Self::Polygon | Self::PolygonAmoy => 8,
+            // Unichain: ~8 seconds (1 block confirmation)
+            Self::Unichain => 8,
+            // Linea: ~8 seconds (vs 6-32 hours for Standard!)
+            Self::Linea => 8,
+            // Sonic: ~5 seconds (high-performance chain)
+            Self::Sonic => 5,
+            // Sei: ~5 seconds (parallel EVM)
+            Self::Sei => 5,
+            _ => return Err(CctpError::UnsupportedChain(*self)),
+        })
+    }
+
+    fn standard_transfer_confirmation_time_seconds(&self) -> Result<u64> {
+        if !self.supports_cctp_v2() {
+            return Err(CctpError::UnsupportedChain(*self));
+        }
+
+        // Standard Transfer attestation times (full finality)
+        // Based on Circle docs: https://developers.circle.com/stablecoins/required-block-confirmations
+        Ok(match self {
+            // Ethereum L1 + L2s settling to Ethereum: 13-19 minutes (~65 ETH blocks)
+            Self::Mainnet | Self::Sepolia => 19 * 60,
+            Self::Arbitrum | Self::ArbitrumSepolia => 19 * 60,
+            Self::Base | Self::BaseSepolia => 19 * 60,
+            Self::Optimism | Self::OptimismSepolia => 19 * 60,
+            Self::Unichain => 19 * 60,
+            // Avalanche: ~20 seconds (native finality)
+            Self::Avalanche | Self::AvalancheFuji => 20,
+            // Polygon: ~8 minutes (PoS finality)
+            Self::Polygon | Self::PolygonAmoy => 8 * 60,
+            // Linea: 6-32 hours (zkEVM proof generation) - use conservative 8 hours
+            Self::Linea => 8 * 60 * 60,
+            // Sonic: ~5 seconds (high-performance chain, native finality)
+            Self::Sonic => 5,
+            // Sei: ~5 seconds (parallel EVM, native finality)
+            Self::Sei => 5,
             _ => return Err(CctpError::UnsupportedChain(*self)),
         })
     }
@@ -303,24 +352,98 @@ mod tests {
     }
 
     #[test]
-    fn test_confirmation_times() {
+    fn test_fast_transfer_confirmation_times() {
+        // Fast Transfer: 1-2 block confirmations
+        // Ethereum: 20 seconds (2 blocks)
         assert_eq!(
             NamedChain::Mainnet
-                .confirmation_average_time_seconds()
+                .fast_transfer_confirmation_time_seconds()
                 .unwrap(),
-            12
+            20
         );
+        // L2s and most chains: 8 seconds (1 block)
         assert_eq!(
             NamedChain::Arbitrum
-                .confirmation_average_time_seconds()
+                .fast_transfer_confirmation_time_seconds()
                 .unwrap(),
-            1
+            8
         );
         assert_eq!(
             NamedChain::Linea
-                .confirmation_average_time_seconds()
+                .fast_transfer_confirmation_time_seconds()
                 .unwrap(),
-            2
+            8
+        );
+        // High-performance chains: 5 seconds
+        assert_eq!(
+            NamedChain::Sonic
+                .fast_transfer_confirmation_time_seconds()
+                .unwrap(),
+            5
+        );
+        assert_eq!(
+            NamedChain::Sei
+                .fast_transfer_confirmation_time_seconds()
+                .unwrap(),
+            5
+        );
+    }
+
+    #[test]
+    fn test_standard_transfer_confirmation_times() {
+        // Standard Transfer: full finality required
+        // Ethereum + L2s: 19 minutes (~65 ETH blocks)
+        assert_eq!(
+            NamedChain::Mainnet
+                .standard_transfer_confirmation_time_seconds()
+                .unwrap(),
+            19 * 60
+        );
+        assert_eq!(
+            NamedChain::Arbitrum
+                .standard_transfer_confirmation_time_seconds()
+                .unwrap(),
+            19 * 60
+        );
+        assert_eq!(
+            NamedChain::Base
+                .standard_transfer_confirmation_time_seconds()
+                .unwrap(),
+            19 * 60
+        );
+        // Avalanche: 20 seconds (native finality)
+        assert_eq!(
+            NamedChain::Avalanche
+                .standard_transfer_confirmation_time_seconds()
+                .unwrap(),
+            20
+        );
+        // Polygon: 8 minutes
+        assert_eq!(
+            NamedChain::Polygon
+                .standard_transfer_confirmation_time_seconds()
+                .unwrap(),
+            8 * 60
+        );
+        // Linea: 8 hours (zkEVM proof generation)
+        assert_eq!(
+            NamedChain::Linea
+                .standard_transfer_confirmation_time_seconds()
+                .unwrap(),
+            8 * 60 * 60
+        );
+        // High-performance chains: same as fast (already fast natively)
+        assert_eq!(
+            NamedChain::Sonic
+                .standard_transfer_confirmation_time_seconds()
+                .unwrap(),
+            5
+        );
+        assert_eq!(
+            NamedChain::Sei
+                .standard_transfer_confirmation_time_seconds()
+                .unwrap(),
+            5
         );
     }
 }

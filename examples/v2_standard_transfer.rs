@@ -125,9 +125,9 @@ async fn main() -> Result<(), CctpError> {
     );
     println!("      Code example:");
     println!("      ```rust");
-    println!("      let (message, hash) = bridge.get_message_sent_event(burn_tx).await?;");
-    println!("      let attestation = bridge.get_attestation_with_retry(");
-    println!("          hash,");
+    println!("      // V2 uses tx hash directly (no need to extract message hash first)");
+    println!("      let attestation = bridge.get_attestation(");
+    println!("          burn_tx,");
     println!("          None,  // Use default max attempts (30)");
     println!("          None,  // Use default poll interval (60s)");
     println!("      ).await?;");

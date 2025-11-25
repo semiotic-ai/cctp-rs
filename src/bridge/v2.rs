@@ -1,6 +1,6 @@
 use crate::error::{CctpError, Result};
 use crate::protocol::{AttestationBytes, FinalityThreshold};
-use crate::{spans, AttestationResponse, AttestationStatus, CctpV2 as CctpV2Trait, DomainId};
+use crate::{spans, AttestationStatus, CctpV2 as CctpV2Trait, DomainId, V2AttestationResponse};
 use alloy_chains::NamedChain;
 use alloy_network::Ethereum;
 use alloy_primitives::{hex, Address, Bytes, FixedBytes, TxHash, U256};
@@ -15,7 +15,8 @@ use tracing::{debug, error, info};
 use url::Url;
 
 use super::bridge_trait::CctpBridge;
-use super::config::{ATTESTATION_PATH_V2, IRIS_API, IRIS_API_SANDBOX};
+use super::config::{IRIS_API, IRIS_API_SANDBOX, MESSAGES_PATH_V2};
+use crate::contracts::erc20::Erc20Contract;
 use crate::contracts::message_transmitter::MessageTransmitter::MessageSent;
 use crate::contracts::v2::{MessageTransmitterV2Contract, TokenMessengerV2Contract};
 
@@ -254,22 +255,45 @@ impl<P: Provider<Ethereum> + Clone> CctpV2<P> {
         }
     }
 
-    /// Gets the attestation for a message hash from the CCTP v2 API
+    /// Gets the attestation for a transaction from Circle's Iris API (v2)
     ///
-    /// Uses the v2 attestation endpoint which supports fast transfer finality.
+    /// This method polls the Iris API until the attestation is ready or times out.
+    /// Unlike CCTP v1 which uses message hashes, v2 uses the transaction hash directly.
+    /// The source domain is automatically derived from the bridge's configured source chain.
     ///
     /// # Arguments
     ///
-    /// * `message_hash`: The hash of the message to get the attestation for
-    /// * `max_attempts`: Maximum number of polling attempts (default: 30)
-    /// * `poll_interval`: Time to wait between polling attempts in seconds (default: 60 for standard, 5 for fast)
+    /// * `tx_hash` - The hash of the burn transaction on the source chain
+    /// * `max_attempts` - Maximum number of polling attempts (default: 30)
+    /// * `poll_interval` - Time between polls in seconds (default: 5 for fast transfer, 60 for standard)
     ///
     /// # Returns
     ///
-    /// The attestation bytes if successful
-    pub async fn get_attestation_with_retry(
+    /// The attestation bytes to submit to the destination chain's MessageTransmitter contract.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - The attestation request fails
+    /// - Circle's API returns a failed status
+    /// - The maximum number of attempts is reached (timeout)
+    ///
+    /// # Example
+    ///
+    /// ```rust,ignore
+    /// // Get attestation for a burn transaction (v2 uses tx hash, not message hash)
+    /// let attestation = bridge.get_attestation(burn_tx_hash, None, None).await?;
+    ///
+    /// // Or with custom retry settings
+    /// let attestation = bridge.get_attestation(
+    ///     burn_tx_hash,
+    ///     Some(60),  // max 60 attempts
+    ///     Some(10),  // 10 seconds between polls
+    /// ).await?;
+    /// ```
+    pub async fn get_attestation(
         &self,
-        message_hash: FixedBytes<32>,
+        tx_hash: TxHash,
         max_attempts: Option<u32>,
         poll_interval: Option<u64>,
     ) -> Result<AttestationBytes> {
@@ -281,6 +305,7 @@ impl<P: Provider<Ethereum> + Clone> CctpV2<P> {
             60 // Standard transfers poll every minute
         });
 
+        let message_hash = FixedBytes::from([0u8; 32]); // Placeholder for span compatibility
         let span = spans::get_attestation_with_retry(
             &message_hash,
             &self.source_chain,
@@ -291,10 +316,11 @@ impl<P: Provider<Ethereum> + Clone> CctpV2<P> {
         let _guard = span.enter();
 
         let client = Client::new();
-        let url = self.create_url(message_hash)?;
+        let url = self.create_url(tx_hash)?;
 
         info!(
             url = %url,
+            tx_hash = %tx_hash,
             version = "v2",
             fast_transfer = self.fast_transfer,
             finality_threshold = %self.finality_threshold(),
@@ -305,13 +331,13 @@ impl<P: Provider<Ethereum> + Clone> CctpV2<P> {
             let attempt_span = spans::get_attestation(&url, attempt);
             let _attempt_guard = attempt_span.enter();
 
-            let response = match self.get_attestation(&client, &url).await {
+            let response = match self.fetch_attestation_response(&client, &url).await {
                 Ok(r) => r,
                 Err(e) => {
                     spans::record_error_with_context(
                         "HttpRequestFailed",
-                        &format!("Failed to fetch attestation: {}", e),
-                        Some(&format!("Attempt {}/{}", attempt, max_attempts)),
+                        &format!("Failed to fetch attestation: {e}"),
+                        Some(&format!("Attempt {attempt}/{max_attempts}")),
                     );
                     error!(
                         error = %e,
@@ -347,13 +373,14 @@ impl<P: Provider<Ethereum> + Clone> CctpV2<P> {
             // Get response body as text first for better error logging
             let response_text = response.text().await?;
 
-            let attestation: AttestationResponse = match serde_json::from_str(&response_text) {
-                Ok(attestation) => attestation,
+            // Parse v2 response format (array of messages)
+            let v2_response: V2AttestationResponse = match serde_json::from_str(&response_text) {
+                Ok(response) => response,
                 Err(e) => {
                     error!(
                         error = %e,
                         response_body = %response_text,
-                        message_hash = %hex::encode(message_hash),
+                        tx_hash = %tx_hash,
                         attempt = attempt,
                         event = "attestation_decode_failed"
                     );
@@ -362,10 +389,21 @@ impl<P: Provider<Ethereum> + Clone> CctpV2<P> {
                 }
             };
 
-            match attestation.status {
+            // V2 returns an array of messages - get the first one
+            let message = match v2_response.messages.first() {
+                Some(msg) => msg,
+                None => {
+                    debug!(event = "no_messages_in_response");
+                    sleep(Duration::from_secs(poll_interval)).await;
+                    continue;
+                }
+            };
+
+            match message.status {
                 AttestationStatus::Complete => {
-                    let attestation_bytes = attestation
+                    let attestation_bytes = message
                         .attestation
+                        .as_ref()
                         .ok_or_else(|| {
                             spans::record_error_with_context(
                                 "AttestationDataMissing",
@@ -409,10 +447,7 @@ impl<P: Provider<Ethereum> + Clone> CctpV2<P> {
 
         spans::record_error_with_context(
             "AttestationTimeout",
-            &format!(
-                "Attestation polling timed out after {} attempts",
-                max_attempts
-            ),
+            &format!("Attestation polling timed out after {max_attempts} attempts"),
             Some(&format!(
                 "Total duration: {} seconds",
                 max_attempts as u64 * poll_interval
@@ -597,6 +632,187 @@ impl<P: Provider<Ethereum> + Clone> CctpV2<P> {
         Ok(tx_hash)
     }
 
+    /// Get the current ERC20 allowance for the TokenMessenger contract
+    ///
+    /// Use this to check if approval is needed before calling `burn`.
+    ///
+    /// # Arguments
+    ///
+    /// * `token_address` - The ERC20 token contract address (e.g., USDC)
+    /// * `owner` - The address that owns the tokens
+    ///
+    /// # Returns
+    ///
+    /// The current allowance amount
+    ///
+    /// # Example
+    ///
+    /// ```rust,ignore
+    /// # use cctp_rs::CctpV2Bridge;
+    /// # use alloy_primitives::{Address, U256};
+    /// # async fn example<P>(bridge: CctpV2Bridge<P>) -> Result<(), Box<dyn std::error::Error>>
+    /// # where P: alloy_provider::Provider<alloy_network::Ethereum> + Clone
+    /// # {
+    /// let usdc = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48".parse()?;
+    /// let owner = "0x742d35Cc6634C0532925a3b844Bc9e7595f8fA0d".parse()?;
+    ///
+    /// let allowance = bridge.get_allowance(usdc, owner).await?;
+    /// if allowance < U256::from(1_000_000) {
+    ///     // Need to approve first
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub async fn get_allowance(&self, token_address: Address, owner: Address) -> Result<U256> {
+        let spender = self.token_messenger_v2_contract()?;
+        let erc20 = Erc20Contract::new(token_address, self.source_provider.clone());
+
+        erc20
+            .allowance(owner, spender)
+            .await
+            .map_err(|e| CctpError::ContractCall(format!("Failed to get allowance: {e}")))
+    }
+
+    /// Approve the TokenMessenger contract to spend tokens
+    ///
+    /// This must be called before `burn` if the TokenMessenger doesn't have
+    /// sufficient allowance to transfer the desired amount.
+    ///
+    /// # Arguments
+    ///
+    /// * `token_address` - The ERC20 token contract address (e.g., USDC)
+    /// * `owner` - The address that owns the tokens and will sign the transaction
+    /// * `amount` - The amount to approve
+    ///
+    /// # Returns
+    ///
+    /// The transaction hash of the approval transaction
+    ///
+    /// # Example
+    ///
+    /// ```rust,ignore
+    /// # use cctp_rs::CctpV2Bridge;
+    /// # use alloy_primitives::{Address, U256};
+    /// # async fn example<P>(bridge: CctpV2Bridge<P>) -> Result<(), Box<dyn std::error::Error>>
+    /// # where P: alloy_provider::Provider<alloy_network::Ethereum> + Clone
+    /// # {
+    /// let usdc = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48".parse()?;
+    /// let owner = "0x742d35Cc6634C0532925a3b844Bc9e7595f8fA0d".parse()?;
+    /// let amount = U256::from(1_000_000); // 1 USDC
+    ///
+    /// // Check allowance first
+    /// let allowance = bridge.get_allowance(usdc, owner).await?;
+    /// if allowance < amount {
+    ///     let tx_hash = bridge.approve(usdc, owner, amount).await?;
+    ///     println!("Approved: {}", tx_hash);
+    /// }
+    ///
+    /// // Now burn is safe to call
+    /// let burn_tx = bridge.burn(amount, owner, usdc).await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub async fn approve(
+        &self,
+        token_address: Address,
+        owner: Address,
+        amount: U256,
+    ) -> Result<TxHash> {
+        let spender = self.token_messenger_v2_contract()?;
+        let erc20 = Erc20Contract::new(token_address, self.source_provider.clone());
+
+        let tx_request = erc20.approve_transaction(owner, spender, amount);
+
+        info!(
+            owner = %owner,
+            spender = %spender,
+            amount = %amount,
+            token_address = %token_address,
+            version = "v2",
+            event = "approval_transaction_initiated"
+        );
+
+        let pending_tx = self.source_provider.send_transaction(tx_request).await?;
+        let tx_hash = *pending_tx.tx_hash();
+
+        info!(
+            tx_hash = %tx_hash,
+            version = "v2",
+            event = "approval_transaction_sent"
+        );
+
+        Ok(tx_hash)
+    }
+
+    /// Check if approval is needed and approve if necessary
+    ///
+    /// This is a convenience method that combines `get_allowance` and `approve`.
+    /// It only sends an approval transaction if the current allowance is less than
+    /// the requested amount.
+    ///
+    /// # Arguments
+    ///
+    /// * `token_address` - The ERC20 token contract address (e.g., USDC)
+    /// * `owner` - The address that owns the tokens
+    /// * `amount` - The amount that needs to be approved
+    ///
+    /// # Returns
+    ///
+    /// `Some(tx_hash)` if an approval was sent, `None` if approval was already sufficient
+    ///
+    /// # Example
+    ///
+    /// ```rust,ignore
+    /// # use cctp_rs::CctpV2Bridge;
+    /// # use alloy_primitives::{Address, U256};
+    /// # async fn example<P>(bridge: CctpV2Bridge<P>) -> Result<(), Box<dyn std::error::Error>>
+    /// # where P: alloy_provider::Provider<alloy_network::Ethereum> + Clone
+    /// # {
+    /// let usdc = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48".parse()?;
+    /// let owner = "0x742d35Cc6634C0532925a3b844Bc9e7595f8fA0d".parse()?;
+    /// let amount = U256::from(1_000_000);
+    ///
+    /// // Approve if needed, then burn
+    /// if let Some(approval_tx) = bridge.ensure_approval(usdc, owner, amount).await? {
+    ///     println!("Approval sent: {}", approval_tx);
+    /// }
+    /// let burn_tx = bridge.burn(amount, owner, usdc).await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub async fn ensure_approval(
+        &self,
+        token_address: Address,
+        owner: Address,
+        amount: U256,
+    ) -> Result<Option<TxHash>> {
+        let current_allowance = self.get_allowance(token_address, owner).await?;
+
+        if current_allowance >= amount {
+            info!(
+                owner = %owner,
+                current_allowance = %current_allowance,
+                required_amount = %amount,
+                token_address = %token_address,
+                version = "v2",
+                event = "approval_not_needed"
+            );
+            return Ok(None);
+        }
+
+        info!(
+            owner = %owner,
+            current_allowance = %current_allowance,
+            required_amount = %amount,
+            token_address = %token_address,
+            version = "v2",
+            event = "approval_needed"
+        );
+
+        let tx_hash = self.approve(token_address, owner, amount).await?;
+        Ok(Some(tx_hash))
+    }
+
     /// Execute a full cross-chain transfer: burn + wait for attestation + mint
     ///
     /// This is a convenience method that orchestrates the complete transfer flow:
@@ -658,7 +874,7 @@ impl<P: Provider<Ethereum> + Clone> CctpV2<P> {
             event = "waiting_for_message_sent_event"
         );
 
-        // Step 2: Get MessageSent event from burn transaction
+        // Step 2: Get MessageSent event from burn transaction (needed for mint)
         let (message_bytes, message_hash) = self.get_message_sent_event(burn_tx_hash).await?;
 
         info!(
@@ -666,13 +882,11 @@ impl<P: Provider<Ethereum> + Clone> CctpV2<P> {
             event = "message_sent_event_retrieved"
         );
 
-        // Step 3: Poll for attestation
-        let attestation = self
-            .get_attestation_with_retry(message_hash, None, None)
-            .await?;
+        // Step 3: Poll for attestation using v2 API (tx hash, not message hash)
+        let attestation = self.get_attestation(burn_tx_hash, None, None).await?;
 
         info!(
-            message_hash = %hex::encode(message_hash),
+            burn_tx_hash = %burn_tx_hash,
             attestation_len = attestation.len(),
             event = "attestation_received"
         );
@@ -692,51 +906,59 @@ impl<P: Provider<Ethereum> + Clone> CctpV2<P> {
 
     /// Constructs the Iris API v2 URL for attestation polling
     ///
-    /// The message hash is formatted with the `0x` prefix as required by Circle's API.
+    /// The v2 API uses a different endpoint format than v1:
+    /// - V1: `/v1/attestations/{messageHash}`
+    /// - V2: `/v2/messages/{sourceDomain}?transactionHash={txHash}`
     ///
     /// # Arguments
     ///
-    /// * `message_hash` - The keccak256 hash of the MessageSent event bytes
+    /// * `tx_hash` - The transaction hash of the burn transaction on the source chain
     ///
     /// # Returns
     ///
-    /// The v2 attestation endpoint URL
+    /// The v2 messages endpoint URL with source domain and transaction hash
     ///
     /// # Errors
     ///
-    /// Returns `CctpError::InvalidUrl` if URL construction fails
+    /// Returns `CctpError::InvalidUrl` if URL construction fails, or
+    /// `CctpError::ChainNotSupported` if the source chain doesn't have a v2 domain ID.
     ///
     /// # Example
     ///
     /// ```rust,ignore
     /// # use cctp_rs::CctpV2Bridge;
-    /// # use alloy_primitives::FixedBytes;
+    /// # use alloy_primitives::TxHash;
     /// # fn example<P>(bridge: &CctpV2Bridge<P>)
     /// # where P: alloy_provider::Provider<alloy_network::Ethereum> + Clone
     /// # {
-    /// let hash = FixedBytes::from([0u8; 32]);
-    /// let url = bridge.create_url(hash).unwrap();
-    /// assert!(url.as_str().contains("/v2/attestations/0x"));
+    /// let tx_hash: TxHash = "0x123...".parse().unwrap();
+    /// let url = bridge.create_url(tx_hash).unwrap();
+    /// // URL format: https://iris-api.circle.com/v2/messages/0?transactionHash=0x123...
+    /// assert!(url.as_str().contains("/v2/messages/"));
+    /// assert!(url.as_str().contains("transactionHash="));
     /// # }
     /// ```
     ///
-    /// See <https://developers.circle.com/cctp/v2-apis>
-    pub fn create_url(&self, message_hash: FixedBytes<32>) -> Result<Url> {
+    /// See <https://developers.circle.com/cctp/transfer-usdc-on-testnet-from-ethereum-to-avalanche>
+    pub fn create_url(&self, tx_hash: TxHash) -> Result<Url> {
+        let source_domain = self.source_chain.cctp_v2_domain_id()?.as_u32();
         self.api_url()
-            .join(&format!("{ATTESTATION_PATH_V2}{message_hash}"))
+            .join(&format!(
+                "{MESSAGES_PATH_V2}{source_domain}?transactionHash={tx_hash}"
+            ))
             .map_err(|e| CctpError::InvalidUrl {
-                reason: format!("Failed to construct v2 attestation URL: {e}"),
+                reason: format!("Failed to construct v2 messages URL: {e}"),
             })
     }
 
-    /// Gets the attestation for a message hash from the CCTP v2 API
+    /// Fetches the attestation response from the CCTP v2 API
     ///
     /// # Arguments
     ///
     /// * `client`: The HTTP client to use
     /// * `url`: The URL to get the attestation from
     ///
-    pub async fn get_attestation(&self, client: &Client, url: &Url) -> Result<Response> {
+    async fn fetch_attestation_response(&self, client: &Client, url: &Url) -> Result<Response> {
         client
             .get(url.as_str())
             .send()
@@ -762,16 +984,6 @@ impl<P: Provider<Ethereum> + Clone> CctpBridge for CctpV2<P> {
 
     async fn get_message_sent_event(&self, tx_hash: TxHash) -> Result<(Vec<u8>, FixedBytes<32>)> {
         self.get_message_sent_event(tx_hash).await
-    }
-
-    async fn get_attestation_with_retry(
-        &self,
-        message_hash: FixedBytes<32>,
-        max_attempts: Option<u32>,
-        poll_interval: Option<u64>,
-    ) -> Result<AttestationBytes> {
-        self.get_attestation_with_retry(message_hash, max_attempts, poll_interval)
-            .await
     }
 
     fn supports_fast_transfer(&self) -> bool {
@@ -822,7 +1034,7 @@ mod tests {
     }
 
     #[test]
-    fn test_v2_attestation_url_format_mainnet() {
+    fn test_v2_messages_url_format_mainnet() {
         let provider =
             ProviderBuilder::new().connect_http("http://localhost:8545".parse().unwrap());
         let bridge = CctpV2::builder()
@@ -833,13 +1045,16 @@ mod tests {
             .recipient(Address::ZERO)
             .build();
 
-        let test_hash = FixedBytes::from([0x12; 32]);
-        let url = bridge.create_url(test_hash).unwrap();
-        insta::assert_snapshot!(url.as_str(), @"https://iris-api.circle.com/v2/attestations/0x1212121212121212121212121212121212121212121212121212121212121212");
+        // V2 uses transaction hash, not message hash
+        let test_tx_hash: TxHash = FixedBytes::from([0x12; 32]);
+        let url = bridge.create_url(test_tx_hash).unwrap();
+        // Format: /v2/messages/{domain}?transactionHash={txHash}
+        // Ethereum mainnet domain = 0
+        insta::assert_snapshot!(url.as_str(), @"https://iris-api.circle.com/v2/messages/0?transactionHash=0x1212121212121212121212121212121212121212121212121212121212121212");
     }
 
     #[test]
-    fn test_v2_attestation_url_format_sepolia() {
+    fn test_v2_messages_url_format_sepolia() {
         let provider =
             ProviderBuilder::new().connect_http("http://localhost:8545".parse().unwrap());
         let bridge = CctpV2::builder()
@@ -850,9 +1065,12 @@ mod tests {
             .recipient(Address::ZERO)
             .build();
 
-        let test_hash = FixedBytes::from([0x12; 32]);
-        let url = bridge.create_url(test_hash).unwrap();
-        insta::assert_snapshot!(url.as_str(), @"https://iris-api-sandbox.circle.com/v2/attestations/0x1212121212121212121212121212121212121212121212121212121212121212");
+        // V2 uses transaction hash, not message hash
+        let test_tx_hash: TxHash = FixedBytes::from([0x12; 32]);
+        let url = bridge.create_url(test_tx_hash).unwrap();
+        // Format: /v2/messages/{domain}?transactionHash={txHash}
+        // Sepolia domain = 0 (same as mainnet Ethereum)
+        insta::assert_snapshot!(url.as_str(), @"https://iris-api-sandbox.circle.com/v2/messages/0?transactionHash=0x1212121212121212121212121212121212121212121212121212121212121212");
     }
 
     #[test]
@@ -1172,10 +1390,11 @@ mod tests {
             .recipient(Address::ZERO)
             .build();
 
-        let test_hash = FixedBytes::from([0xab; 32]);
-        let mainnet_url = mainnet_bridge.create_url(test_hash).unwrap();
+        let test_tx_hash: TxHash = FixedBytes::from([0xab; 32]);
+        let mainnet_url = mainnet_bridge.create_url(test_tx_hash).unwrap();
         assert!(mainnet_url.as_str().contains("iris-api.circle.com"));
-        assert!(mainnet_url.as_str().contains("/v2/attestations/"));
+        assert!(mainnet_url.as_str().contains("/v2/messages/"));
+        assert!(mainnet_url.as_str().contains("transactionHash="));
 
         // Testnet should use sandbox API
         let testnet_bridge = CctpV2::builder()
@@ -1186,9 +1405,10 @@ mod tests {
             .recipient(Address::ZERO)
             .build();
 
-        let testnet_url = testnet_bridge.create_url(test_hash).unwrap();
+        let testnet_url = testnet_bridge.create_url(test_tx_hash).unwrap();
         assert!(testnet_url.as_str().contains("iris-api-sandbox.circle.com"));
-        assert!(testnet_url.as_str().contains("/v2/attestations/"));
+        assert!(testnet_url.as_str().contains("/v2/messages/"));
+        assert!(testnet_url.as_str().contains("transactionHash="));
     }
 
     #[test]

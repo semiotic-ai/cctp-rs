@@ -30,7 +30,7 @@
 //! │   ├── cctp_rs.get_transaction_receipt
 //! │   │   └── cctp_rs.rpc_call
 //! │   └── (event log parsing)
-//! ├── cctp_rs.get_attestation_with_retry
+//! ├── cctp_rs.get_attestation
 //! │   ├── cctp_rs.get_attestation (attempt 1)
 //! │   │   ├── cctp_rs.http_request
 //! │   │   └── cctp_rs.process_attestation_response
@@ -93,7 +93,7 @@
 //! { span.source_chain = "Mainnet" && span.destination_chain = "Arbitrum" }
 //!
 //! # Find slow attestation polling
-//! { name = "cctp_rs.get_attestation_with_retry" && duration > 5m }
+//! { name = "cctp_rs.get_attestation" && duration > 5m }
 //!
 //! # Find all HTTP errors
 //! { span.error.type = "HttpRequestFailed" }
@@ -234,7 +234,7 @@ async fn demonstrate_complete_bridge_flow(
     let message_hash: FixedBytes<32> = FixedBytes::from([0xaa; 32]);
 
     match bridge
-        .get_attestation_with_retry(
+        .get_attestation(
             message_hash,
             Some(3), // 3 attempts for demo
             Some(2), // 2 second intervals
@@ -302,7 +302,7 @@ async fn demonstrate_error_tracking(
     let invalid_hash: FixedBytes<32> = FixedBytes::from([0x00; 32]);
 
     match bridge
-        .get_attestation_with_retry(
+        .get_attestation(
             invalid_hash,
             Some(2), // Only 2 attempts
             Some(1), // 1 second intervals

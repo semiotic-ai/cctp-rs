@@ -1,54 +1,38 @@
 use crate::error::Result;
-use crate::protocol::{AttestationBytes, FinalityThreshold};
+use crate::protocol::FinalityThreshold;
 use alloy_chains::NamedChain;
 use alloy_primitives::{Address, FixedBytes, TxHash};
 use async_trait::async_trait;
 
 /// Common trait interface for CCTP bridge implementations (v1 and v2)
 ///
-/// This trait provides a unified API for bridging USDC across chains using
-/// Circle's Cross-Chain Transfer Protocol. It abstracts over protocol versions,
-/// allowing both v1 and v2 implementations to be used interchangeably.
+/// This trait provides shared functionality for bridging USDC across chains using
+/// Circle's Cross-Chain Transfer Protocol. It covers chain configuration and
+/// message extraction that are common to both protocol versions.
 ///
-/// # Protocol Version Support
+/// # Attestation Fetching
 ///
-/// The trait is designed to work seamlessly with both CCTP v1 and v2:
+/// Attestation fetching is **not** part of this trait because V1 and V2 use
+/// fundamentally different APIs:
 ///
-/// - **Core methods**: Required by all implementations (v1 and v2)
-/// - **V2-specific methods**: Have default implementations that return conservative values for v1
+/// - **V1**: `Cctp::get_attestation(message_hash)` - looks up by message hash
+/// - **V2**: `CctpV2::get_attestation(tx_hash)` - looks up by transaction hash
 ///
-/// # Dynamic Dispatch
+/// This design ensures compile-time type safety: you can't accidentally pass
+/// the wrong query type to the wrong bridge version.
 ///
-/// This trait is object-safe, enabling use as trait objects:
+/// # Example
 ///
-/// ```rust,no_run
-/// # use cctp_rs::{Cctp, CctpBridge};
-/// # use alloy_chains::NamedChain;
-/// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-/// # use alloy_provider::ProviderBuilder;
-/// # let provider = ProviderBuilder::new().connect("http://localhost:8545").await?;
-/// let bridge = Cctp::builder()
-///     .source_chain(NamedChain::Mainnet)
-///     .destination_chain(NamedChain::Arbitrum)
-///     .source_provider(provider.clone())
-///     .destination_provider(provider)
-///     .recipient("0x742d35Cc6634C0532925a3b844Bc9e7595f8fA0d".parse()?)
-///     .build();
+/// ```rust,ignore
+/// use cctp_rs::{Cctp, CctpV2Bridge};
 ///
-/// // Use as trait object for dynamic dispatch
-/// let bridge_trait: &dyn CctpBridge = &bridge;
-/// let source = bridge_trait.source_chain();
-/// # Ok(())
-/// # }
+/// // V1 bridge - get attestation by message hash
+/// let (message, message_hash) = v1_bridge.get_message_sent_event(tx_hash).await?;
+/// let attestation = v1_bridge.get_attestation(message_hash, None, None).await?;
+///
+/// // V2 bridge - get attestation by transaction hash
+/// let attestation = v2_bridge.get_attestation(tx_hash, None, None).await?;
 /// ```
-///
-/// # Implementation Guide
-///
-/// When implementing this trait:
-///
-/// 1. **V1 implementations**: Only implement core methods, use default impls for v2 features
-/// 2. **V2 implementations**: Override v2-specific methods as needed
-/// 3. **Error handling**: Use the provided `Result` type for consistent error propagation
 #[async_trait]
 pub trait CctpBridge: Send + Sync {
     /// Returns the source chain for the bridge
@@ -69,7 +53,6 @@ pub trait CctpBridge: Send + Sync {
     /// Gets the `MessageSent` event data from a CCTP bridge transaction
     ///
     /// Extracts the message bytes and computes their hash from the transaction receipt.
-    /// The message hash is used to poll for attestations from Circle's Iris API.
     ///
     /// # Arguments
     ///
@@ -88,42 +71,6 @@ pub trait CctpBridge: Send + Sync {
     /// - The transaction doesn't contain a `MessageSent` event
     /// - The event data cannot be decoded
     async fn get_message_sent_event(&self, tx_hash: TxHash) -> Result<(Vec<u8>, FixedBytes<32>)>;
-
-    /// Gets the attestation for a message hash from Circle's Iris API
-    ///
-    /// This method polls the Iris API until the attestation is ready or times out.
-    /// The attestation is required to complete the bridge transfer on the destination chain.
-    ///
-    /// # Arguments
-    ///
-    /// * `message_hash` - The keccak256 hash of the message from `get_message_sent_event`
-    /// * `max_attempts` - Maximum number of polling attempts (default: 30)
-    /// * `poll_interval` - Time to wait between polling attempts in seconds (default: 60)
-    ///
-    /// # Returns
-    ///
-    /// The attestation bytes that must be submitted to the destination chain's
-    /// `MessageTransmitter` contract to complete the transfer.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if:
-    /// - The attestation request fails
-    /// - Circle's API returns a failed status
-    /// - The maximum number of attempts is reached (timeout)
-    ///
-    /// # Example Timing
-    ///
-    /// With default parameters (30 attempts × 60 seconds):
-    /// - Total timeout: 30 minutes
-    /// - Typical v1 attestation time: 13-19 minutes
-    /// - Typical v2 fast transfer time: <30 seconds
-    async fn get_attestation_with_retry(
-        &self,
-        message_hash: FixedBytes<32>,
-        max_attempts: Option<u32>,
-        poll_interval: Option<u64>,
-    ) -> Result<AttestationBytes>;
 
     /// Returns whether this bridge supports fast transfers (v2 feature)
     ///

@@ -112,9 +112,9 @@ async fn main() -> Result<(), CctpError> {
     println!("      Polling interval: 5 seconds (vs 60s for standard)");
     println!("      Expected wait: <30 seconds");
     println!("      ```rust");
-    println!("      let (message, hash) = bridge.get_message_sent_event(burn_tx).await?;");
-    println!("      let attestation = bridge.get_attestation_with_retry(");
-    println!("          hash,");
+    println!("      // V2 uses tx hash directly (no need to extract message hash first)");
+    println!("      let attestation = bridge.get_attestation(");
+    println!("          burn_tx,");
     println!("          None,  // Defaults to fast polling (5s interval)");
     println!("          None,");
     println!("      ).await?;");

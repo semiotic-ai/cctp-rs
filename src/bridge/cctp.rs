@@ -17,6 +17,7 @@ use url::Url;
 use super::bridge_trait::CctpBridge;
 use super::config::{ATTESTATION_PATH_V1, IRIS_API, IRIS_API_SANDBOX};
 use crate::contracts::message_transmitter::MessageTransmitter::MessageSent;
+use crate::protocol::FinalityThreshold;
 
 /// CCTP v1 bridge implementation
 ///
@@ -190,18 +191,45 @@ impl<P: Provider<Ethereum> + Clone> Cctp<P> {
         }
     }
 
-    /// Gets the attestation for a message hash from the CCTP API
+    /// Gets the attestation for a message hash from Circle's Iris API
+    ///
+    /// This method polls the Iris API until the attestation is ready or times out.
+    /// The message hash is typically obtained from `get_message_sent_event()`.
     ///
     /// # Arguments
     ///
-    /// * `message_hash`: The hash of the message to get the attestation for
-    /// * `max_attempts`: Maximum number of polling attempts (default: 30)
-    /// * `poll_interval`: Time to wait between polling attempts in seconds (default: 60)
+    /// * `message_hash` - The keccak256 hash of the MessageSent event bytes
+    /// * `max_attempts` - Maximum number of polling attempts (default: 30)
+    /// * `poll_interval` - Time to wait between polling attempts in seconds (default: 60)
     ///
     /// # Returns
     ///
-    /// The attestation bytes if successful
-    pub async fn get_attestation_with_retry(
+    /// The attestation bytes to submit to the destination chain's MessageTransmitter contract.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - The attestation request fails
+    /// - Circle's API returns a failed status
+    /// - The maximum number of attempts is reached (timeout)
+    ///
+    /// # Example
+    ///
+    /// ```rust,ignore
+    /// // Get the message from the burn transaction
+    /// let (message, message_hash) = bridge.get_message_sent_event(burn_tx_hash).await?;
+    ///
+    /// // Poll for attestation (default: 30 attempts, 60 seconds apart)
+    /// let attestation = bridge.get_attestation(message_hash, None, None).await?;
+    ///
+    /// // Or with custom retry settings
+    /// let attestation = bridge.get_attestation(
+    ///     message_hash,
+    ///     Some(20),  // max 20 attempts
+    ///     Some(30),  // 30 seconds between polls
+    /// ).await?;
+    /// ```
+    pub async fn get_attestation(
         &self,
         message_hash: FixedBytes<32>,
         max_attempts: Option<u32>,
@@ -231,7 +259,7 @@ impl<P: Provider<Ethereum> + Clone> Cctp<P> {
             let attempt_span = spans::get_attestation(&url, attempt);
             let _attempt_guard = attempt_span.enter();
 
-            let response = match self.get_attestation(&client, &url).await {
+            let response = match self.fetch_attestation_response(&client, &url).await {
                 Ok(r) => r,
                 Err(e) => {
                     spans::record_error_with_context(
@@ -388,14 +416,14 @@ impl<P: Provider<Ethereum> + Clone> Cctp<P> {
             })
     }
 
-    /// Gets the attestation for a message hash from the CCTP API
+    /// Fetches the attestation response from the CCTP API
     ///
     /// # Arguments
     ///
     /// * `client`: The HTTP client to use
     /// * `url`: The URL to get the attestation from
     ///
-    pub async fn get_attestation(&self, client: &Client, url: &Url) -> Result<Response> {
+    async fn fetch_attestation_response(&self, client: &Client, url: &Url) -> Result<Response> {
         client
             .get(url.as_str())
             .send()
@@ -423,17 +451,17 @@ impl<P: Provider<Ethereum> + Clone> CctpBridge for Cctp<P> {
         self.get_message_sent_event(tx_hash).await
     }
 
-    async fn get_attestation_with_retry(
-        &self,
-        message_hash: FixedBytes<32>,
-        max_attempts: Option<u32>,
-        poll_interval: Option<u64>,
-    ) -> Result<AttestationBytes> {
-        self.get_attestation_with_retry(message_hash, max_attempts, poll_interval)
-            .await
+    fn supports_fast_transfer(&self) -> bool {
+        false
     }
 
-    // V2-specific methods use default implementations (all return false/None for v1)
+    fn supports_hooks(&self) -> bool {
+        false
+    }
+
+    fn finality_threshold(&self) -> Option<FinalityThreshold> {
+        None
+    }
 }
 
 #[cfg(test)]

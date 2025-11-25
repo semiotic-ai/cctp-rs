@@ -9,7 +9,9 @@ mod domain_id;
 mod finality;
 mod message;
 
-pub use attestation::{AttestationBytes, AttestationResponse, AttestationStatus};
+pub use attestation::{
+    AttestationBytes, AttestationResponse, AttestationStatus, V2AttestationResponse, V2Message,
+};
 pub use domain_id::DomainId;
 pub use finality::FinalityThreshold;
 pub use message::{BurnMessageV2, MessageHeader};

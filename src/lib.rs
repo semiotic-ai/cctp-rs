@@ -5,7 +5,7 @@
 //! This library provides a safe, ergonomic interface for bridging USDC across
 //! multiple blockchain networks using Circle's CCTP infrastructure.
 //!
-//! ## Quick Start
+//! ## Quick Start (V1)
 //!
 //! ```rust,no_run
 //! use cctp_rs::{Cctp, CctpError};
@@ -26,9 +26,39 @@
 //!     .recipient("0x742d35Cc6634C0532925a3b844Bc9e7595f8fA0d".parse()?)
 //!     .build();
 //!
-//! // Get attestation for a bridge transaction
-//! let message_hash: FixedBytes<32> = [0u8; 32].into();
-//! let attestation = bridge.get_attestation_with_retry(message_hash, None, None).await?;
+//! // Get message from burn transaction, then fetch attestation
+//! let burn_tx_hash = FixedBytes::from([0u8; 32]);
+//! let (message, message_hash) = bridge.get_message_sent_event(burn_tx_hash).await?;
+//! let attestation = bridge.get_attestation(message_hash, None, None).await?;
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! ## Quick Start (V2)
+//!
+//! ```rust,no_run
+//! use cctp_rs::{CctpV2Bridge, CctpError};
+//! use alloy_chains::NamedChain;
+//! use alloy_primitives::FixedBytes;
+//!
+//! # async fn example() -> Result<(), CctpError> {
+//! # use alloy_provider::ProviderBuilder;
+//! // V2 bridge with fast transfer support
+//! let eth_provider = ProviderBuilder::new().connect("http://localhost:8545").await?;
+//! let linea_provider = ProviderBuilder::new().connect("http://localhost:8546").await?;
+//!
+//! let bridge = CctpV2Bridge::builder()
+//!     .source_chain(NamedChain::Mainnet)
+//!     .destination_chain(NamedChain::Linea)
+//!     .source_provider(eth_provider)
+//!     .destination_provider(linea_provider)
+//!     .recipient("0x742d35Cc6634C0532925a3b844Bc9e7595f8fA0d".parse()?)
+//!     .fast_transfer(true)  // Enable sub-30 second settlement
+//!     .build();
+//!
+//! // V2 uses transaction hash directly (no message hash extraction needed)
+//! let burn_tx_hash = FixedBytes::from([0u8; 32]);
+//! let attestation = bridge.get_attestation(burn_tx_hash, None, None).await?;
 //! # Ok(())
 //! # }
 //! ```
@@ -78,8 +108,13 @@ mod protocol;
 
 // Public API - minimal surface for 1.0.0 stability
 pub use bridge::{BridgeParams, Cctp, CctpBridge, CctpV2 as CctpV2Bridge};
+pub use chain::addresses::{
+    CCTP_V2_MESSAGE_TRANSMITTER_MAINNET, CCTP_V2_MESSAGE_TRANSMITTER_TESTNET,
+    CCTP_V2_TOKEN_MESSENGER_MAINNET, CCTP_V2_TOKEN_MESSENGER_TESTNET,
+};
 pub use chain::{CctpV1, CctpV2};
 pub use contracts::{
+    erc20::Erc20Contract,
     message_transmitter::MessageTransmitterContract,
     token_messenger::TokenMessengerContract,
     v2::{MessageTransmitterV2Contract, TokenMessengerV2Contract},
@@ -87,7 +122,7 @@ pub use contracts::{
 pub use error::{CctpError, Result};
 pub use protocol::{
     AttestationBytes, AttestationResponse, AttestationStatus, BurnMessageV2, DomainId,
-    FinalityThreshold, MessageHeader,
+    FinalityThreshold, MessageHeader, V2AttestationResponse, V2Message,
 };
 
 // Public module for advanced users who need custom instrumentation

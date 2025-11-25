@@ -57,7 +57,7 @@ pub fn get_message_sent_event(
     )
 }
 
-/// Create span for polling attestation API with retry logic.
+/// Create span for polling attestation API with retry logic (v1).
 ///
 /// Parent: Top-level bridge operation span
 /// Children: cctp_rs.get_attestation (multiple attempts)
@@ -76,6 +76,35 @@ pub fn get_attestation_with_retry(
         destination_chain = %destination_chain,
         max_attempts = max_attempts,
         poll_interval_secs = poll_interval_secs,
+        error.type = tracing::field::Empty,
+        error.message = tracing::field::Empty,
+        error.source = tracing::field::Empty,
+        otel.status_code = "OK",
+    )
+}
+
+/// Create span for polling attestation API with retry logic (v2).
+///
+/// V2 uses transaction hash instead of message hash for attestation lookup.
+///
+/// Parent: Top-level bridge operation span
+/// Children: cctp_rs.get_attestation (multiple attempts)
+#[inline]
+pub fn get_v2_attestation_with_retry(
+    tx_hash: TxHash,
+    source_chain: &NamedChain,
+    destination_chain: &NamedChain,
+    max_attempts: u32,
+    poll_interval_secs: u64,
+) -> Span {
+    tracing::info_span!(
+        "cctp_rs.get_attestation_with_retry",
+        tx_hash = %tx_hash,
+        source_chain = %source_chain,
+        destination_chain = %destination_chain,
+        max_attempts = max_attempts,
+        poll_interval_secs = poll_interval_secs,
+        version = "v2",
         error.type = tracing::field::Empty,
         error.message = tracing::field::Empty,
         error.source = tracing::field::Empty,

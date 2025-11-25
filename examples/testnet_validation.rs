@@ -370,11 +370,9 @@ async fn main() -> Result<(), CctpError> {
 
     // Poll for attestation with progress updates
     // V2 API uses transaction hash, not message hash
-    // IMPORTANT: Use get_attestation_with_message to get the canonical message from Circle's API
+    // IMPORTANT: get_attestation returns both the canonical message and attestation from Circle's API
     // The MessageSent event log contains zeros in the nonce field - Circle fills this in
-    let (message, attestation) = bridge
-        .get_attestation_with_message(burn_tx, None, None)
-        .await?;
+    let (message, attestation) = bridge.get_attestation(burn_tx, None, None).await?;
     println!("\n   ✅ Attestation and message received!");
     println!("   Message length: {} bytes", message.len());
     println!("   Attestation length: {} bytes", attestation.len());

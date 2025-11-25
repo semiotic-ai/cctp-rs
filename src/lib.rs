@@ -56,9 +56,9 @@
 //!     .fast_transfer(true)  // Enable sub-30 second settlement
 //!     .build();
 //!
-//! // V2 uses transaction hash directly (no message hash extraction needed)
+//! // V2 uses transaction hash directly and returns both message and attestation
 //! let burn_tx_hash = FixedBytes::from([0u8; 32]);
-//! let attestation = bridge.get_attestation(burn_tx_hash, None, None).await?;
+//! let (message, attestation) = bridge.get_attestation(burn_tx_hash, None, None).await?;
 //! # Ok(())
 //! # }
 //! ```
@@ -93,7 +93,7 @@
 //! ## Public API
 //!
 //! - [`AttestationResponse`] and [`AttestationStatus`] - Circle's Iris API attestation types
-//! - [`Cctp`] and [`BridgeParams`] - Core CCTP bridge implementation
+//! - [`Cctp`] and [`CctpV2Bridge`] - Core CCTP bridge implementations for v1 and v2
 //! - [`CctpV1`] and [`CctpV2`] - Traits for chain-specific configurations
 //! - [`CctpError`] and [`Result`] - Error types for error handling
 //! - Contract wrappers for direct contract interaction:
@@ -107,7 +107,7 @@ mod error;
 mod protocol;
 
 // Public API - minimal surface for 1.0.0 stability
-pub use bridge::{BridgeParams, Cctp, CctpBridge, CctpV2 as CctpV2Bridge};
+pub use bridge::{Cctp, CctpBridge, CctpV2 as CctpV2Bridge};
 pub use chain::addresses::{
     CCTP_V2_MESSAGE_TRANSMITTER_MAINNET, CCTP_V2_MESSAGE_TRANSMITTER_TESTNET,
     CCTP_V2_TOKEN_MESSENGER_MAINNET, CCTP_V2_TOKEN_MESSENGER_TESTNET,

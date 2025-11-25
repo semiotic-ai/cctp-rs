@@ -13,6 +13,7 @@ A production-ready Rust implementation of Circle's Cross-Chain Transfer Protocol
 - 🔄 **Multi-chain support** for 26+ mainnet and testnet networks
 - 📦 **Builder pattern** for intuitive API usage
 - ⚡ **CCTP v2 support** with fast transfers (<30s settlement)
+- 🤝 **Relayer-aware** APIs for permissionless v2 relay handling
 - 🎯 **Programmable hooks** for advanced use cases
 - 🔍 **Comprehensive observability** with OpenTelemetry integration
 
@@ -40,7 +41,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-cctp-rs = "0.15.0"
+cctp-rs = "0.16.0"
 ```
 
 ### Basic Example
@@ -311,7 +312,7 @@ Run the full test suite with:
 cargo test --all-features
 ```
 
-All 154 unit tests validate:
+All 155 unit tests validate:
 
 - Contract method selection logic
 - Domain ID resolution and mapping

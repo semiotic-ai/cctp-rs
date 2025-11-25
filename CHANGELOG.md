@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.16.0] - 2025-11-25
+
+### Added
+
+- **Relayer-Aware API for CCTP v2**: New methods to gracefully handle the permissionless relay model
+  - `MintResult` enum: Distinguishes between `Minted(TxHash)` (we relayed) and `AlreadyRelayed` (third party completed)
+  - `is_message_received()`: Query on-chain nonce status to check if transfer is complete
+  - `wait_for_receive()`: Poll until transfer completes (by relayer or self), with configurable attempts and interval
+  - `mint_if_needed()`: Conservative mint strategy that checks status first, avoiding wasted gas on races
+
+- **AlreadyRelayed Error Variant**: New `CctpError::AlreadyRelayed` for explicit race condition handling
+
+### Documentation
+
+- Added "Relayer-Aware Patterns (V2)" section to README with three usage patterns:
+  - Option A: Wait for completion (recommended for most use cases)
+  - Option B: Self-relay with graceful race handling
+  - Option C: Manual status checking
+
 ## [0.15.0] - 2025-11-25
 
 ### Changed

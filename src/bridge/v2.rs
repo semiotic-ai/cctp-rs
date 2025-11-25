@@ -160,8 +160,16 @@ impl<P: Provider<Ethereum> + Clone> CctpV2<P> {
 
     /// Gets the `MessageSent` event data from a CCTP v2 bridge transaction
     ///
-    /// Note: V2 uses the same MessageSent event format as v1 for now.
-    /// Future versions may introduce v2-specific event structures.
+    /// **⚠️ WARNING**: For v2 transfers, the message extracted from transaction logs contains
+    /// zeros in the nonce field (bytes 12-44). Circle's attestation service fills in the actual
+    /// nonce before signing. If you need to mint tokens, use [`get_attestation_with_message`]
+    /// instead, which returns the canonical message from Circle's API with the correct nonce.
+    ///
+    /// This function is useful for:
+    /// - Computing the message hash for tracking/monitoring purposes
+    /// - Debugging and inspecting the message structure
+    ///
+    /// For actual token minting, use [`get_attestation_with_message`] to get the correct message.
     ///
     /// # Arguments
     ///
@@ -169,7 +177,7 @@ impl<P: Provider<Ethereum> + Clone> CctpV2<P> {
     ///
     /// # Returns
     ///
-    /// Returns the message bytes and its hash
+    /// Returns the message bytes (with zeros for nonce) and its hash
     pub async fn get_message_sent_event(
         &self,
         tx_hash: TxHash,
@@ -424,6 +432,231 @@ impl<P: Provider<Ethereum> + Clone> CctpV2<P> {
                         event = "attestation_complete"
                     );
                     return Ok(attestation_bytes);
+                }
+                AttestationStatus::Failed => {
+                    spans::record_error_with_context(
+                        "AttestationFailed",
+                        "Circle API returned failed status for attestation",
+                        Some(
+                            "The message may be invalid or the source transaction may have failed",
+                        ),
+                    );
+                    error!(event = "attestation_failed");
+                    return Err(CctpError::AttestationFailed {
+                        reason: "Attestation failed".to_string(),
+                    });
+                }
+                AttestationStatus::Pending | AttestationStatus::PendingConfirmations => {
+                    debug!(event = "attestation_pending");
+                    sleep(Duration::from_secs(poll_interval)).await;
+                }
+            }
+        }
+
+        spans::record_error_with_context(
+            "AttestationTimeout",
+            &format!("Attestation polling timed out after {max_attempts} attempts"),
+            Some(&format!(
+                "Total duration: {} seconds",
+                max_attempts as u64 * poll_interval
+            )),
+        );
+        error!(
+            total_duration_secs = max_attempts as u64 * poll_interval,
+            event = "attestation_timeout"
+        );
+        Err(CctpError::AttestationTimeout)
+    }
+
+    /// Gets the attestation AND message for a transaction from Circle's Iris API (v2)
+    ///
+    /// **IMPORTANT**: This is the recommended method for v2 transfers. Unlike v1, the MessageSent
+    /// event log contains a "template" message with zeros in the nonce field. Circle's attestation
+    /// service fills in the actual nonce before signing. You MUST use the message returned by this
+    /// function (from Circle's API), not the message extracted from transaction logs.
+    ///
+    /// This method polls the Iris API until the attestation is ready or times out.
+    /// Unlike CCTP v1 which uses message hashes, v2 uses the transaction hash directly.
+    /// The source domain is automatically derived from the bridge's configured source chain.
+    ///
+    /// # Arguments
+    ///
+    /// * `tx_hash` - The hash of the burn transaction on the source chain
+    /// * `max_attempts` - Maximum number of polling attempts (default: 30)
+    /// * `poll_interval` - Time between polls in seconds (default: 5 for fast transfer, 60 for standard)
+    ///
+    /// # Returns
+    ///
+    /// A tuple of `(message_bytes, attestation_bytes)` where:
+    /// - `message_bytes`: The canonical message from Circle's API (with nonce filled in)
+    /// - `attestation_bytes`: The signed attestation to submit to the destination chain
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - The attestation request fails
+    /// - Circle's API returns a failed status
+    /// - The maximum number of attempts is reached (timeout)
+    ///
+    /// # Example
+    ///
+    /// ```rust,ignore
+    /// // Get attestation and message for a burn transaction
+    /// let (message, attestation) = bridge.get_attestation_with_message(burn_tx_hash, None, None).await?;
+    ///
+    /// // Use this message (NOT the one from get_message_sent_event) for minting
+    /// let mint_tx = bridge.mint(message, attestation, recipient).await?;
+    /// ```
+    pub async fn get_attestation_with_message(
+        &self,
+        tx_hash: TxHash,
+        max_attempts: Option<u32>,
+        poll_interval: Option<u64>,
+    ) -> Result<(Vec<u8>, AttestationBytes)> {
+        // Adjust defaults based on fast transfer mode
+        let max_attempts = max_attempts.unwrap_or(30);
+        let poll_interval = poll_interval.unwrap_or(if self.fast_transfer {
+            5 // Fast transfers poll more frequently (5 seconds)
+        } else {
+            60 // Standard transfers poll every minute
+        });
+
+        let message_hash = FixedBytes::from([0u8; 32]); // Placeholder for span compatibility
+        let span = spans::get_attestation_with_retry(
+            &message_hash,
+            &self.source_chain,
+            &self.destination_chain,
+            max_attempts,
+            poll_interval,
+        );
+        let _guard = span.enter();
+
+        let client = Client::new();
+        let url = self.create_url(tx_hash)?;
+
+        info!(
+            url = %url,
+            tx_hash = %tx_hash,
+            version = "v2",
+            fast_transfer = self.fast_transfer,
+            finality_threshold = %self.finality_threshold(),
+            event = "attestation_with_message_polling_started"
+        );
+
+        for attempt in 1..=max_attempts {
+            let attempt_span = spans::get_attestation(&url, attempt);
+            let _attempt_guard = attempt_span.enter();
+
+            let response = match self.fetch_attestation_response(&client, &url).await {
+                Ok(r) => r,
+                Err(e) => {
+                    spans::record_error_with_context(
+                        "HttpRequestFailed",
+                        &format!("Failed to fetch attestation: {e}"),
+                        Some(&format!("Attempt {attempt}/{max_attempts}")),
+                    );
+                    error!(
+                        error = %e,
+                        attempt = attempt,
+                        event = "attestation_http_request_failed"
+                    );
+                    return Err(e);
+                }
+            };
+
+            let status_code = response.status().as_u16();
+            let process_span = spans::process_attestation_response(status_code, attempt);
+            let _process_guard = process_span.enter();
+
+            // Handle rate limiting
+            if response.status() == reqwest::StatusCode::TOO_MANY_REQUESTS {
+                let secs = 5 * 60;
+                debug!(sleep_secs = secs, event = "rate_limit_exceeded");
+                sleep(Duration::from_secs(secs)).await;
+                continue;
+            }
+
+            // Handle 404 status - treat as pending since the attestation likely doesn't exist yet
+            if response.status() == reqwest::StatusCode::NOT_FOUND {
+                debug!(event = "attestation_not_found");
+                sleep(Duration::from_secs(poll_interval)).await;
+                continue;
+            }
+
+            // Ensure the response status is successful before trying to parse JSON
+            response.error_for_status_ref()?;
+
+            // Get response body as text first for better error logging
+            let response_text = response.text().await?;
+
+            // Parse v2 response format (array of messages)
+            let v2_response: V2AttestationResponse = match serde_json::from_str(&response_text) {
+                Ok(response) => response,
+                Err(e) => {
+                    error!(
+                        error = %e,
+                        response_body = %response_text,
+                        tx_hash = %tx_hash,
+                        attempt = attempt,
+                        event = "attestation_decode_failed"
+                    );
+                    sleep(Duration::from_secs(poll_interval)).await;
+                    continue;
+                }
+            };
+
+            // V2 returns an array of messages - get the first one
+            let message = match v2_response.messages.first() {
+                Some(msg) => msg,
+                None => {
+                    debug!(event = "no_messages_in_response");
+                    sleep(Duration::from_secs(poll_interval)).await;
+                    continue;
+                }
+            };
+
+            match message.status {
+                AttestationStatus::Complete => {
+                    let attestation_bytes = message
+                        .attestation
+                        .as_ref()
+                        .ok_or_else(|| {
+                            spans::record_error_with_context(
+                                "AttestationDataMissing",
+                                "Attestation status is complete but attestation field is null",
+                                Some("This indicates an unexpected API response format"),
+                            );
+                            error!(event = "attestation_data_missing");
+                            CctpError::AttestationFailed {
+                                reason: "Attestation missing".to_string(),
+                            }
+                        })?
+                        .to_vec();
+
+                    let message_bytes = message
+                        .message
+                        .as_ref()
+                        .ok_or_else(|| {
+                            spans::record_error_with_context(
+                                "MessageDataMissing",
+                                "Attestation status is complete but message field is null",
+                                Some("This indicates an unexpected API response format"),
+                            );
+                            error!(event = "message_data_missing");
+                            CctpError::AttestationFailed {
+                                reason: "Message missing".to_string(),
+                            }
+                        })?
+                        .to_vec();
+
+                    info!(
+                        message_length_bytes = message_bytes.len(),
+                        attestation_length_bytes = attestation_bytes.len(),
+                        version = "v2",
+                        fast_transfer = self.fast_transfer,
+                        event = "attestation_with_message_complete"
+                    );
+                    return Ok((message_bytes, attestation_bytes));
                 }
                 AttestationStatus::Failed => {
                     spans::record_error_with_context(
@@ -874,24 +1107,21 @@ impl<P: Provider<Ethereum> + Clone> CctpV2<P> {
             event = "waiting_for_message_sent_event"
         );
 
-        // Step 2: Get MessageSent event from burn transaction (needed for mint)
-        let (message_bytes, message_hash) = self.get_message_sent_event(burn_tx_hash).await?;
-
-        info!(
-            message_hash = %hex::encode(message_hash),
-            event = "message_sent_event_retrieved"
-        );
-
-        // Step 3: Poll for attestation using v2 API (tx hash, not message hash)
-        let attestation = self.get_attestation(burn_tx_hash, None, None).await?;
+        // Step 2: Poll for attestation and get canonical message from Circle's API
+        // Note: We use get_attestation_with_message because the MessageSent event log
+        // contains zeros in the nonce field. Circle fills in the actual nonce before signing.
+        let (message_bytes, attestation) = self
+            .get_attestation_with_message(burn_tx_hash, None, None)
+            .await?;
 
         info!(
             burn_tx_hash = %burn_tx_hash,
+            message_len = message_bytes.len(),
             attestation_len = attestation.len(),
-            event = "attestation_received"
+            event = "attestation_with_message_received"
         );
 
-        // Step 4: Mint tokens on destination chain
+        // Step 3: Mint tokens on destination chain
         let mint_tx_hash = self.mint(message_bytes, attestation, from).await?;
 
         info!(

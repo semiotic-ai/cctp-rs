@@ -364,20 +364,20 @@ async fn main() -> Result<(), CctpError> {
     );
 
     println!("\n1️⃣2️⃣ Attestation Phase:");
-    println!("   Extracting message from burn transaction...");
-
-    let (message, message_hash) = bridge.get_message_sent_event(burn_tx).await?;
-    println!("   ✅ Message Hash: {}", message_hash);
-
-    println!("\n   Polling Circle API for attestation...");
+    println!("   Polling Circle API for attestation and message...");
     println!("   This typically takes 10-15 minutes for Arbitrum Sepolia finality.");
     println!("   Progress will be shown every 60 seconds.\n");
 
     // Poll for attestation with progress updates
     // V2 API uses transaction hash, not message hash
-    // Default: max 30 attempts, 5 second intervals for fast transfer
-    let attestation = bridge.get_attestation(burn_tx, None, None).await?;
-    println!("\n   ✅ Attestation received!");
+    // IMPORTANT: Use get_attestation_with_message to get the canonical message from Circle's API
+    // The MessageSent event log contains zeros in the nonce field - Circle fills this in
+    let (message, attestation) = bridge
+        .get_attestation_with_message(burn_tx, None, None)
+        .await?;
+    println!("\n   ✅ Attestation and message received!");
+    println!("   Message length: {} bytes", message.len());
+    println!("   Attestation length: {} bytes", attestation.len());
 
     println!("\n1️⃣3️⃣ Mint Phase:");
     println!("   Minting 1 USDC on Base Sepolia...");
@@ -393,9 +393,8 @@ async fn main() -> Result<(), CctpError> {
     println!("   Your 1 USDC has been successfully bridged from Arbitrum Sepolia to Base Sepolia.");
     println!("\n   Summary:");
     println!("   - Burn TX: {}", burn_tx);
-    println!("   - Message Hash: {}", message_hash);
     println!("   - Mint TX: {}", mint_tx);
-    println!("\n✅ v0.13.0 Testnet Validation: PASSED");
+    println!("\n✅ v0.15.0 Testnet Validation: PASSED");
 
     Ok(())
 }

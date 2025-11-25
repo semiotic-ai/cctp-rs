@@ -33,6 +33,25 @@
 //! # }
 //! ```
 //!
+//! ## Direct Contract Access
+//!
+//! For advanced use cases, you can use the contract wrappers directly:
+//!
+//! ```rust,no_run
+//! use cctp_rs::{TokenMessengerV2Contract, MessageTransmitterV2Contract};
+//! use alloy_primitives::address;
+//! use alloy_provider::ProviderBuilder;
+//!
+//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+//! let provider = ProviderBuilder::new().connect("http://localhost:8545").await?;
+//! let contract_address = address!("9f3B8679c73C2Fef8b59B4f3444d4e156fb70AA5");
+//!
+//! // Create contract wrapper
+//! let token_messenger = TokenMessengerV2Contract::new(contract_address, provider);
+//! # Ok(())
+//! # }
+//! ```
+//!
 //! ## Features
 //!
 //! - **Type-safe contract interactions** using Alloy
@@ -45,8 +64,11 @@
 //!
 //! - [`AttestationResponse`] and [`AttestationStatus`] - Circle's Iris API attestation types
 //! - [`Cctp`] and [`BridgeParams`] - Core CCTP bridge implementation
-//! - [`CctpV1`] - Trait for chain-specific configurations
+//! - [`CctpV1`] and [`CctpV2`] - Traits for chain-specific configurations
 //! - [`CctpError`] and [`Result`] - Error types for error handling
+//! - Contract wrappers for direct contract interaction:
+//!   - v1: [`TokenMessengerContract`]
+//!   - v2: [`TokenMessengerV2Contract`], [`MessageTransmitterV2Contract`]
 
 mod bridge;
 mod chain;
@@ -57,6 +79,10 @@ mod protocol;
 // Public API - minimal surface for 1.0.0 stability
 pub use bridge::{BridgeParams, Cctp, CctpBridge, CctpV2 as CctpV2Bridge};
 pub use chain::{CctpV1, CctpV2};
+pub use contracts::{
+    token_messenger::TokenMessengerContract,
+    v2::{MessageTransmitterV2Contract, TokenMessengerV2Contract},
+};
 pub use error::{CctpError, Result};
 pub use protocol::{
     AttestationBytes, AttestationResponse, AttestationStatus, BurnMessageV2, DomainId,

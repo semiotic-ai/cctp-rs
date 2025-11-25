@@ -10,4 +10,4 @@ mod v2;
 
 pub use bridge_trait::CctpBridge;
 pub use cctp::Cctp;
-pub use v2::CctpV2;
+pub use v2::{CctpV2, MintResult};

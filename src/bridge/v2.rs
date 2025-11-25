@@ -14,6 +14,19 @@ use tokio::time::sleep;
 use tracing::{debug, error, info};
 use url::Url;
 
+/// Result of attempting to mint on the destination chain
+///
+/// CCTP v2 is permissionless - anyone can relay a message once Circle's attestation
+/// is available. Third-party relayers actively monitor for burns and may complete
+/// transfers before your application does. This enum represents both outcomes.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum MintResult {
+    /// We successfully minted (includes the transaction hash)
+    Minted(TxHash),
+    /// Already relayed by a third party (transfer was successful)
+    AlreadyRelayed,
+}
+
 use super::bridge_trait::CctpBridge;
 use super::config::{IRIS_API, IRIS_API_SANDBOX, MESSAGES_PATH_V2};
 use crate::contracts::erc20::Erc20Contract;
@@ -664,6 +677,206 @@ impl<P: Provider<Ethereum> + Clone> CctpV2<P> {
         );
 
         Ok(tx_hash)
+    }
+
+    /// Check if a message has already been received on the destination chain
+    ///
+    /// This queries the on-chain `usedNonces` mapping to determine if the message
+    /// was already processed (by us or a third-party relayer). Use this to check
+    /// transfer status without attempting to mint.
+    ///
+    /// # Arguments
+    ///
+    /// * `message` - The canonical message bytes (from [`Self::get_attestation`])
+    ///
+    /// # Returns
+    ///
+    /// * `true` if the message has been processed (funds already minted)
+    /// * `false` if the message is still pending
+    ///
+    /// # Example
+    ///
+    /// ```rust,ignore
+    /// let (message, _attestation) = bridge.get_attestation(burn_tx, None, None).await?;
+    /// if bridge.is_message_received(&message).await? {
+    ///     println!("Transfer already complete!");
+    /// }
+    /// ```
+    pub async fn is_message_received(&self, message: &[u8]) -> Result<bool> {
+        let message_transmitter_address = self.message_transmitter_v2_contract()?;
+        let message_transmitter = MessageTransmitterV2Contract::new(
+            message_transmitter_address,
+            self.destination_provider.clone(),
+        );
+
+        let message_hash: [u8; 32] = alloy_primitives::keccak256(message).into();
+
+        debug!(
+            message_hash = %hex::encode(message_hash),
+            version = "v2",
+            event = "checking_message_received_status"
+        );
+
+        message_transmitter
+            .is_message_received(message_hash)
+            .await
+            .map_err(|e| CctpError::ContractCall(format!("Failed to check message status: {e}")))
+    }
+
+    /// Wait until a message has been received on the destination chain
+    ///
+    /// Polls the destination chain until the message is processed, regardless
+    /// of who relayed it (your application or a third-party relayer). Use this
+    /// when you don't need to self-relay and just want to know when the transfer
+    /// is complete.
+    ///
+    /// # Arguments
+    ///
+    /// * `message` - The canonical message bytes (from [`Self::get_attestation`])
+    /// * `max_attempts` - Maximum polling attempts (default: 60)
+    /// * `poll_interval` - Seconds between polls (default: based on transfer type and chain)
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(())` when the message has been received
+    /// * `Err(CctpError::AttestationTimeout)` if max attempts exceeded
+    ///
+    /// # Example
+    ///
+    /// ```rust,ignore
+    /// let burn_tx = bridge.burn(amount, from, usdc).await?;
+    /// let (message, _attestation) = bridge.get_attestation(burn_tx, None, None).await?;
+    ///
+    /// // Wait for completion (relayer or self)
+    /// bridge.wait_for_receive(&message, None, None).await?;
+    /// println!("Transfer complete!");
+    /// ```
+    pub async fn wait_for_receive(
+        &self,
+        message: &[u8],
+        max_attempts: Option<u32>,
+        poll_interval: Option<u64>,
+    ) -> Result<()> {
+        let max_attempts = max_attempts.unwrap_or(60);
+        let poll_interval = poll_interval.unwrap_or_else(|| {
+            if self.fast_transfer {
+                self.destination_chain
+                    .fast_transfer_confirmation_time_seconds()
+                    .unwrap_or(5)
+            } else {
+                self.destination_chain
+                    .standard_transfer_confirmation_time_seconds()
+                    .unwrap_or(60)
+            }
+        });
+
+        info!(
+            max_attempts = max_attempts,
+            poll_interval_secs = poll_interval,
+            fast_transfer = self.fast_transfer,
+            version = "v2",
+            event = "wait_for_receive_started"
+        );
+
+        for attempt in 1..=max_attempts {
+            if self.is_message_received(message).await? {
+                info!(
+                    attempt = attempt,
+                    version = "v2",
+                    event = "message_received_confirmed"
+                );
+                return Ok(());
+            }
+
+            debug!(
+                attempt = attempt,
+                max_attempts = max_attempts,
+                version = "v2",
+                event = "message_not_yet_received"
+            );
+
+            sleep(Duration::from_secs(poll_interval)).await;
+        }
+
+        error!(
+            max_attempts = max_attempts,
+            poll_interval_secs = poll_interval,
+            version = "v2",
+            event = "wait_for_receive_timeout"
+        );
+
+        Err(CctpError::AttestationTimeout)
+    }
+
+    /// Attempt to mint, gracefully handling if already relayed
+    ///
+    /// This is the recommended method for production use. It uses a **conservative**
+    /// strategy: always checks [`Self::is_message_received`] before attempting to mint.
+    /// This avoids wasted gas on failed transactions when relayers are active.
+    ///
+    /// # Arguments
+    ///
+    /// * `message_bytes` - The canonical message (from [`Self::get_attestation`])
+    /// * `attestation` - Circle's attestation signature
+    /// * `from` - Address to submit the transaction from
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(MintResult::Minted(tx_hash))` if we successfully minted
+    /// * `Ok(MintResult::AlreadyRelayed)` if a relayer completed the transfer
+    ///
+    /// # Example
+    ///
+    /// ```rust,ignore
+    /// let burn_tx = bridge.burn(amount, from, usdc).await?;
+    /// let (message, attestation) = bridge.get_attestation(burn_tx, None, None).await?;
+    ///
+    /// match bridge.mint_if_needed(message, attestation, from).await? {
+    ///     MintResult::Minted(tx) => println!("We minted: {tx}"),
+    ///     MintResult::AlreadyRelayed => println!("Relayer completed it!"),
+    /// }
+    /// ```
+    pub async fn mint_if_needed(
+        &self,
+        message_bytes: Vec<u8>,
+        attestation: AttestationBytes,
+        from: Address,
+    ) -> Result<MintResult> {
+        // Conservative approach: always check first to avoid wasted gas
+        if self.is_message_received(&message_bytes).await? {
+            info!(version = "v2", event = "mint_skipped_already_relayed");
+            return Ok(MintResult::AlreadyRelayed);
+        }
+
+        // Attempt to mint
+        match self.mint(message_bytes.clone(), attestation, from).await {
+            Ok(tx_hash) => {
+                info!(
+                    tx_hash = %tx_hash,
+                    version = "v2",
+                    event = "mint_if_needed_successful"
+                );
+                Ok(MintResult::Minted(tx_hash))
+            }
+            Err(e) => {
+                // Race condition: relayer may have completed between our check and mint
+                // Parse error to detect "nonce already used" pattern
+                let error_str = e.to_string().to_lowercase();
+                if error_str.contains("nonce") && error_str.contains("used")
+                    || error_str.contains("already received")
+                    || error_str.contains("already processed")
+                {
+                    info!(
+                        original_error = %e,
+                        version = "v2",
+                        event = "mint_raced_by_relayer"
+                    );
+                    Ok(MintResult::AlreadyRelayed)
+                } else {
+                    Err(e)
+                }
+            }
+        }
     }
 
     /// Get the current ERC20 allowance for the TokenMessenger contract

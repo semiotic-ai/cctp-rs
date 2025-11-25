@@ -107,7 +107,7 @@ mod error;
 mod protocol;
 
 // Public API - minimal surface for 1.0.0 stability
-pub use bridge::{Cctp, CctpBridge, CctpV2 as CctpV2Bridge};
+pub use bridge::{Cctp, CctpBridge, CctpV2 as CctpV2Bridge, MintResult};
 pub use chain::addresses::{
     CCTP_V2_MESSAGE_TRANSMITTER_MAINNET, CCTP_V2_MESSAGE_TRANSMITTER_TESTNET,
     CCTP_V2_TOKEN_MESSENGER_MAINNET, CCTP_V2_TOKEN_MESSENGER_TESTNET,

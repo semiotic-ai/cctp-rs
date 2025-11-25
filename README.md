@@ -214,6 +214,56 @@ println!("V2 Fast Transfer: {} seconds", fast_time);
 println!("V2 Standard Transfer: {} seconds", standard_time);
 ```
 
+### Relayer-Aware Patterns (V2)
+
+CCTP v2 is **permissionless** - anyone can relay a message once Circle's attestation is available. Third-party relayers (Synapse, LI.FI, etc.) actively monitor for burns and may complete transfers before your application does. This is a feature, not a bug!
+
+#### Option A: Wait for Completion (Recommended)
+
+If you don't need to self-relay, just wait for the transfer to complete:
+
+```rust
+use cctp_rs::CctpV2Bridge;
+
+async fn wait_for_transfer<P: Provider + Clone>(bridge: &CctpV2Bridge<P>) -> Result<(), CctpError> {
+    let burn_tx = bridge.burn(amount, from, usdc).await?;
+    let (message, _attestation) = bridge.get_attestation(burn_tx, None, None).await?;
+
+    // Wait for completion (by relayer or self)
+    bridge.wait_for_receive(&message, None, None).await?;
+    println!("Transfer complete!");
+    Ok(())
+}
+```
+
+#### Option B: Self-Relay with Graceful Handling
+
+If you want to try minting yourself but handle relayer races:
+
+```rust
+use cctp_rs::{CctpV2Bridge, MintResult};
+
+async fn self_relay<P: Provider + Clone>(bridge: &CctpV2Bridge<P>) -> Result<(), CctpError> {
+    let burn_tx = bridge.burn(amount, from, usdc).await?;
+    let (message, attestation) = bridge.get_attestation(burn_tx, None, None).await?;
+
+    match bridge.mint_if_needed(message, attestation, from).await? {
+        MintResult::Minted(tx) => println!("We minted: {tx}"),
+        MintResult::AlreadyRelayed => println!("Relayer completed it for us!"),
+    }
+    Ok(())
+}
+```
+
+#### Option C: Check Status Manually
+
+```rust
+let is_complete = bridge.is_message_received(&message).await?;
+if is_complete {
+    println!("Transfer already completed by relayer");
+}
+```
+
 ## Examples
 
 Check out the [`examples/`](examples/) directory for complete working examples:

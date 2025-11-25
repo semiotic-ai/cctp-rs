@@ -6,7 +6,7 @@
 //! - `CctpV1`: Original 7-chain support
 //! - `CctpV2`: Enhanced 26+ chain support with Fast Transfer
 
-mod addresses;
+pub mod addresses;
 mod config;
 mod v2;
 

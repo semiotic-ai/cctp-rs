@@ -4,8 +4,6 @@
 //! MessageTransmitter contract, which handles cross-chain message verification
 //! and reception with finality-aware processing.
 
-#![allow(dead_code)] // Public API methods not used internally
-
 use alloy_network::Ethereum;
 use alloy_primitives::{Address, Bytes};
 use alloy_provider::Provider;
@@ -20,14 +18,12 @@ use MessageTransmitterV2::MessageTransmitterV2Instance;
 ///
 /// Handles message verification and reception with support for different
 /// finality levels (Fast Transfer vs Standard).
-#[allow(dead_code)]
 pub struct MessageTransmitterV2Contract<P: Provider<Ethereum>> {
     instance: MessageTransmitterV2Instance<P>,
 }
 
 impl<P: Provider<Ethereum>> MessageTransmitterV2Contract<P> {
     /// Create a new MessageTransmitterV2Contract
-    #[allow(dead_code)]
     pub fn new(address: Address, provider: P) -> Self {
         debug!(
             contract_address = %address,
@@ -53,7 +49,6 @@ impl<P: Provider<Ethereum>> MessageTransmitterV2Contract<P> {
     /// - Standard messages (threshold 2000) trigger `handleReceiveFinalizedMessage`
     ///
     /// The receiving contract must implement the appropriate handler interface.
-    #[allow(dead_code)]
     pub fn receive_message_transaction(
         &self,
         message: Bytes,
@@ -87,7 +82,6 @@ impl<P: Provider<Ethereum>> MessageTransmitterV2Contract<P> {
     /// * `message_body` - Arbitrary message data
     /// * `destination_caller` - Optional authorized caller on destination (0x0 = anyone)
     /// * `min_finality_threshold` - 1000 (fast) or 2000 (standard)
-    #[allow(dead_code)]
     pub fn send_message_transaction(
         &self,
         from_address: Address,

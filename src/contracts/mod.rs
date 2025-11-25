@@ -10,7 +10,7 @@
 //!
 //! Contract wrappers provide type-safe, instrumented interfaces to CCTP contracts:
 //!
-//! - v1: [`TokenMessengerContract`](token_messenger::TokenMessengerContract)
+//! - v1: [`TokenMessengerContract`](token_messenger::TokenMessengerContract), [`MessageTransmitterContract`](message_transmitter::MessageTransmitterContract)
 //! - v2: [`TokenMessengerV2Contract`](v2::TokenMessengerV2Contract), [`MessageTransmitterV2Contract`](v2::MessageTransmitterV2Contract)
 
 pub mod message_transmitter;

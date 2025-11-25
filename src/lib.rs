@@ -67,7 +67,7 @@
 //! - [`CctpV1`] and [`CctpV2`] - Traits for chain-specific configurations
 //! - [`CctpError`] and [`Result`] - Error types for error handling
 //! - Contract wrappers for direct contract interaction:
-//!   - v1: [`TokenMessengerContract`]
+//!   - v1: [`TokenMessengerContract`], [`MessageTransmitterContract`]
 //!   - v2: [`TokenMessengerV2Contract`], [`MessageTransmitterV2Contract`]
 
 mod bridge;
@@ -80,6 +80,7 @@ mod protocol;
 pub use bridge::{BridgeParams, Cctp, CctpBridge, CctpV2 as CctpV2Bridge};
 pub use chain::{CctpV1, CctpV2};
 pub use contracts::{
+    message_transmitter::MessageTransmitterContract,
     token_messenger::TokenMessengerContract,
     v2::{MessageTransmitterV2Contract, TokenMessengerV2Contract},
 };

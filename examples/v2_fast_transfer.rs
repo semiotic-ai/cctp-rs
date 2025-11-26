@@ -3,82 +3,226 @@
 //! This example demonstrates how to perform a fast CCTP v2 transfer with <30 second settlement.
 //! Fast transfers use finality threshold 1000 ("confirmed" level) and may incur fees (0-14 bps).
 //!
+//! Prerequisites:
+//! - Arbitrum Sepolia ETH for gas
+//! - Arbitrum Sepolia USDC from Circle faucet (https://faucet.circle.com/)
+//! - Base Sepolia ETH for destination gas
+//!
+//! Environment variables (set these in .env file):
+//! - TESTNET_PRIVATE_KEY: Your wallet private key (must start with 0x)
+//! - TESTNET_API_KEY: Alchemy API key (used for all testnet RPCs)
+//! - BASE_SEPOLIA_RPC_URL: (optional) Override Base Sepolia RPC
+//! - ARBITRUM_SEPOLIA_RPC_URL: (optional) Override Arbitrum Sepolia RPC
+//!
 //! Run with: `cargo run --example v2_fast_transfer`
 
 use alloy_chains::NamedChain;
-use alloy_primitives::{Address, U256};
-use alloy_provider::ProviderBuilder;
+use alloy_network::EthereumWallet;
+use alloy_primitives::{address, U256};
+use alloy_provider::{Provider, ProviderBuilder};
+use alloy_signer_local::PrivateKeySigner;
+use alloy_sol_types::sol;
 use cctp_rs::{CctpError, CctpV2, CctpV2Bridge};
-use std::str::FromStr;
+use dotenvy::dotenv;
+
+// Minimal ERC20 interface for balance checking
+sol! {
+    #[sol(rpc)]
+    interface IERC20 {
+        function balanceOf(address account) external view returns (uint256);
+    }
+}
+
+/// Format ETH balance (18 decimals) for display
+fn format_eth_balance(balance: U256) -> String {
+    let eth = balance.to::<u128>() as f64 / 1e18;
+    format!("{:.6}", eth)
+}
+
+/// Format USDC balance (6 decimals) for display
+fn format_usdc_balance(balance: U256) -> String {
+    let usdc = balance.to::<u128>() as f64 / 1e6;
+    format!("{:.6}", usdc)
+}
 
 #[tokio::main]
 async fn main() -> Result<(), CctpError> {
-    // Initialize tracing for detailed logging
-    tracing_subscriber::fmt::init();
+    // Load .env file
+    dotenv().ok();
 
-    println!("⚡ CCTP v2 Fast Transfer Example");
-    println!("=================================");
-    println!("Bridging USDC with <30 second settlement\n");
+    // Initialize logging
+    tracing_subscriber::fmt()
+        .with_max_level(tracing::Level::INFO)
+        .init();
 
-    // Step 1: Set up providers
-    println!("1️⃣ Setting up blockchain providers...");
-    println!("   Note: Replace with your actual RPC endpoints\n");
+    println!("⚡ CCTP v2 Fast Transfer: Arbitrum Sepolia → Base Sepolia");
+    println!("==========================================================\n");
 
-    let eth_provider = ProviderBuilder::new().connect_http(
-        "https://eth-mainnet.g.alchemy.com/v2/YOUR_API_KEY"
-            .parse()
-            .unwrap(),
-    );
+    // Load environment variables
+    let private_key_str =
+        std::env::var("TESTNET_PRIVATE_KEY").expect("TESTNET_PRIVATE_KEY must be set in .env file");
 
-    let base_provider = ProviderBuilder::new().connect_http(
-        "https://base-mainnet.g.alchemy.com/v2/YOUR_API_KEY"
-            .parse()
-            .unwrap(),
-    );
+    let api_key =
+        std::env::var("TESTNET_API_KEY").expect("TESTNET_API_KEY must be set in .env file");
 
-    // Step 2: Create the CCTP v2 bridge with fast transfer enabled
-    println!("2️⃣ Creating CCTP v2 bridge with fast transfer...");
+    // Parse private key and get wallet address
+    let signer: PrivateKeySigner = private_key_str
+        .parse()
+        .expect("Invalid TESTNET_PRIVATE_KEY format");
+    let wallet_address = signer.address();
 
-    let recipient = Address::from_str("0x742d35Cc6634C0532925a3b844Bc9e7595f8fA0d")?;
+    // Construct RPC URLs
+    let base_sepolia_rpc = std::env::var("BASE_SEPOLIA_RPC_URL")
+        .unwrap_or_else(|_| format!("https://base-sepolia.g.alchemy.com/v2/{api_key}"));
+    let arbitrum_sepolia_rpc = std::env::var("ARBITRUM_SEPOLIA_RPC_URL")
+        .unwrap_or_else(|_| format!("https://arbitrum-sepolia.g.alchemy.com/v2/{api_key}"));
 
-    // Set max_fee for fast transfer (optional fee cap in USDC atomic units)
-    let max_fee = U256::from(1000); // 0.001 USDC max fee
-
-    let bridge = CctpV2Bridge::builder()
-        .source_chain(NamedChain::Mainnet)
-        .destination_chain(NamedChain::Base)
-        .source_provider(eth_provider)
-        .destination_provider(base_provider)
-        .recipient(recipient)
-        .fast_transfer(true) // Enable fast transfers!
-        .max_fee(max_fee) // Optional: set maximum fee willing to pay
-        .build();
-
-    println!("   ✅ Fast transfer bridge created\n");
-
-    // Step 3: Display fast transfer configuration
-    println!("3️⃣ Fast Transfer Configuration:");
-    println!("   Source Chain: {}", bridge.source_chain());
-    println!("   Destination Chain: {}", bridge.destination_chain());
-    println!("   Recipient: {}", bridge.recipient());
+    println!("📍 Configuration:");
+    println!("   Wallet: {wallet_address}");
+    println!("   Source: Arbitrum Sepolia");
+    println!("   Destination: Base Sepolia");
     println!("   Transfer Mode: ⚡ Fast (Confirmed)");
-    println!("   Fast Transfer Enabled: {}", bridge.is_fast_transfer());
-    println!("   Finality Threshold: {}", bridge.finality_threshold());
-    println!("   Max Fee: {} USDC (0.001 USDC)", max_fee);
-    println!("   Expected Settlement: <30 seconds (finality level 1000)\n");
+    println!("   Arbitrum Sepolia RPC: {arbitrum_sepolia_rpc}");
+    println!("   Base Sepolia RPC: {base_sepolia_rpc}\n");
 
-    // Step 4: Fast transfer fee information
-    println!("4️⃣ Fast Transfer Fees:");
-    let fee_bps = bridge.source_chain().fast_transfer_fee_bps()?.unwrap_or(0);
-    println!("   Fee rate: {} basis points (bps)", fee_bps);
-    println!("   Fee range: 0-14 bps (most chains: 0 bps = free)");
-    println!("   On 1 USDC transfer:");
-    println!("      - 0 bps = $0.00 fee");
-    println!("      - 10 bps = $0.001 fee (0.1%)");
-    println!("      - 14 bps = $0.0014 fee (0.14%)\n");
+    // Create wallet from signer
+    let wallet = EthereumWallet::from(signer);
 
-    // Step 5: Key differences from standard transfers
-    println!("5️⃣ Fast vs Standard Transfer:");
+    // Create providers with wallet for signing transactions
+    println!("1️⃣  Creating blockchain providers...");
+
+    let arb_sepolia_full_rpc_url = format!("{arbitrum_sepolia_rpc}{api_key}");
+    let arbitrum_sepolia_provider = ProviderBuilder::new()
+        .wallet(wallet.clone())
+        .connect_http(arb_sepolia_full_rpc_url.parse().unwrap());
+
+    let base_sepolia_full_rpc_url = format!("{base_sepolia_rpc}{api_key}");
+    let base_sepolia_provider = ProviderBuilder::new()
+        .wallet(wallet)
+        .connect_http(base_sepolia_full_rpc_url.parse().unwrap());
+
+    println!("   ✅ Providers created (with wallet signer)\n");
+
+    // USDC contract addresses
+    let usdc_arbitrum_sepolia = address!("75faf114eafb1BDbe2F0316DF893fd58CE46AA4d");
+    let usdc_base_sepolia = address!("036CbD53842c5426634e7929541eC2318f3dCF7e");
+
+    // Check balances on Arbitrum Sepolia
+    println!("2️⃣  Checking Arbitrum Sepolia Balances...");
+
+    let arb_eth_balance = arbitrum_sepolia_provider
+        .get_balance(wallet_address)
+        .await
+        .map_err(|e| {
+            CctpError::Provider(format!("Failed to get Arbitrum Sepolia ETH balance: {e}"))
+        })?;
+
+    let usdc_arb_contract = IERC20::new(usdc_arbitrum_sepolia, &arbitrum_sepolia_provider);
+    let arb_usdc_balance = usdc_arb_contract
+        .balanceOf(wallet_address)
+        .call()
+        .await
+        .map_err(|e| {
+            CctpError::ContractCall(format!("Failed to get Arbitrum Sepolia USDC balance: {e}"))
+        })?;
+
+    println!(
+        "   ETH Balance: {} ETH",
+        format_eth_balance(arb_eth_balance)
+    );
+    println!(
+        "   USDC Balance: {} USDC",
+        format_usdc_balance(arb_usdc_balance)
+    );
+    println!("   ✅ Arbitrum Sepolia balances retrieved\n");
+
+    // Check balances on Base Sepolia
+    println!("3️⃣  Checking Base Sepolia Balances...");
+
+    let base_eth_balance = base_sepolia_provider
+        .get_balance(wallet_address)
+        .await
+        .map_err(|e| CctpError::Provider(format!("Failed to get Base Sepolia ETH balance: {e}")))?;
+
+    let usdc_base_contract = IERC20::new(usdc_base_sepolia, &base_sepolia_provider);
+    let base_usdc_balance = usdc_base_contract
+        .balanceOf(wallet_address)
+        .call()
+        .await
+        .map_err(|e| {
+            CctpError::ContractCall(format!("Failed to get Base Sepolia USDC balance: {e}"))
+        })?;
+
+    println!(
+        "   ETH Balance: {} ETH",
+        format_eth_balance(base_eth_balance)
+    );
+    println!(
+        "   USDC Balance: {} USDC",
+        format_usdc_balance(base_usdc_balance)
+    );
+    println!("   ✅ Base Sepolia balances retrieved\n");
+
+    // Summary
+    println!("📊 Balance Summary:");
+    println!("┌─────────────────────┬──────────────────┬──────────────────┐");
+    println!("│ Chain               │ ETH Balance      │ USDC Balance     │");
+    println!("├─────────────────────┼──────────────────┼──────────────────┤");
+    println!(
+        "│ Arbitrum Sepolia    │ {:>16} │ {:>16} │",
+        format_eth_balance(arb_eth_balance),
+        format_usdc_balance(arb_usdc_balance)
+    );
+    println!(
+        "│ Base Sepolia        │ {:>16} │ {:>16} │",
+        format_eth_balance(base_eth_balance),
+        format_usdc_balance(base_usdc_balance)
+    );
+    println!("└─────────────────────┴──────────────────┴──────────────────┘\n");
+
+    // Check if we have sufficient balances
+    let min_eth = U256::from(1_000_000_000_000_000u64); // 0.001 ETH minimum
+    let min_usdc = U256::from(1_000_000u64); // 1 USDC minimum (6 decimals)
+
+    let mut issues: Vec<String> = Vec::new();
+
+    if arb_eth_balance < min_eth {
+        issues.push(format!(
+            "❌ Insufficient ETH on Arbitrum Sepolia: {} (need >= 0.001 ETH)\n   \
+             → Get testnet ETH: https://faucet.quicknode.com/arbitrum/sepolia",
+            format_eth_balance(arb_eth_balance)
+        ));
+    }
+
+    if base_eth_balance < min_eth {
+        issues.push(format!(
+            "❌ Insufficient ETH on Base Sepolia: {} (need >= 0.001 ETH)\n   \
+             → Get testnet ETH: https://faucet.quicknode.com/base/sepolia",
+            format_eth_balance(base_eth_balance)
+        ));
+    }
+
+    if arb_usdc_balance < min_usdc {
+        issues.push(format!(
+            "❌ Insufficient USDC on Arbitrum Sepolia: {} (need >= 1 USDC)\n   \
+             → Get testnet USDC: https://faucet.circle.com/",
+            format_usdc_balance(arb_usdc_balance)
+        ));
+    }
+
+    if !issues.is_empty() {
+        println!("⚠️  Cannot proceed - insufficient balances:\n");
+        for issue in &issues {
+            println!("   {issue}\n");
+        }
+        println!("Please fund your wallet and try again.");
+        return Ok(());
+    }
+
+    println!("✅ All balance requirements met!\n");
+
+    // Fast transfer info
+    println!("4️⃣  Fast Transfer Configuration:");
     println!("   ┌─────────────────┬─────────────┬──────────────┐");
     println!("   │ Feature         │ Fast        │ Standard     │");
     println!("   ├─────────────────┼─────────────┼──────────────┤");
@@ -89,143 +233,157 @@ async fn main() -> Result<(), CctpError> {
     println!("   │ Security        │ Confirmed   │ Finalized    │");
     println!("   └─────────────────┴─────────────┴──────────────┘\n");
 
-    // Step 6: Example transfer flow
-    println!("6️⃣ Fast Transfer Flow:");
-    println!("   The flow is the same as standard, but much faster:\n");
+    // Safety exit - remove this line to proceed with the actual transfer
+    println!("🛑 Dry run complete. To execute the actual fast transfer:");
+    println!("   Set the environment variable: EXECUTE_TRANSFER=true");
+    println!("   Then run: cargo run --example v2_fast_transfer\n");
 
-    let _amount = U256::from(1_000_000); // 1 USDC
-    let _from_address = recipient;
-    let _usdc_address = Address::from_str("0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48")?;
+    if std::env::var("EXECUTE_TRANSFER").unwrap_or_default() != "true" {
+        return Ok(());
+    }
 
-    println!("   🔥 Step 1: Burn with fast transfer");
-    println!("      → Uses depositForBurn() with fast finality (1000)");
-    println!("      → Max fee: {} (optional cap)", max_fee);
-    println!("      ```rust");
-    println!("      let burn_tx = bridge.burn(");
-    println!("          U256::from(1_000_000),");
-    println!("          from_address,");
-    println!("          usdc_address,");
-    println!("      ).await?;");
-    println!("      ```\n");
+    println!("🚀 EXECUTE_TRANSFER=true detected, proceeding with fast transfer...\n");
 
-    println!("   ⚡ Step 2: Fast attestation polling");
-    println!("      Polling interval: 5 seconds (vs 60s for standard)");
-    println!("      Expected wait: <30 seconds");
-    println!("      ```rust");
-    println!("      // V2 uses tx hash directly (no need to extract message hash first)");
-    println!("      let attestation = bridge.get_attestation(");
-    println!("          burn_tx,");
-    println!("          None,  // Defaults to fast polling (5s interval)");
-    println!("          None,");
-    println!("      ).await?;");
-    println!("      ```\n");
+    // Create bridge with fast transfer enabled
+    println!("5️⃣  Setting up CCTP v2 bridge with FAST TRANSFER...");
 
-    println!("   💰 Step 3: Mint on destination");
-    println!("      Same as standard transfer");
-    println!("      ```rust");
-    println!("      let mint_tx = bridge.mint(message, attestation, from_address).await?;");
-    println!("      ```\n");
+    // Set max_fee for fast transfer (optional fee cap in USDC atomic units)
+    let max_fee = U256::from(1000); // 0.001 USDC max fee
 
-    // Step 7: When to use fast transfers
-    println!("7️⃣ When to Use Fast Transfers:");
-    println!("   ✅ Use fast transfers for:");
-    println!("      - Time-sensitive operations (DEX arbitrage, liquidations)");
-    println!("      - User-facing applications (better UX)");
-    println!("      - Trading and DeFi protocols");
-    println!("      - Real-time settlements");
-    println!("   ⚠️  Use standard transfers for:");
-    println!("      - Large transfers requiring maximum security");
-    println!("      - Batch operations where time isn't critical");
-    println!("      - When avoiding all fees is important\n");
+    let bridge = CctpV2Bridge::builder()
+        .source_chain(NamedChain::ArbitrumSepolia)
+        .destination_chain(NamedChain::BaseSepolia)
+        .source_provider(arbitrum_sepolia_provider)
+        .destination_provider(base_sepolia_provider)
+        .recipient(wallet_address)
+        .fast_transfer(true) // Enable fast transfers!
+        .max_fee(max_fee) // Optional: set maximum fee willing to pay
+        .build();
 
-    // Step 8: Fee management
-    println!("8️⃣ Fee Management:");
-    println!("   Setting max_fee helps control costs:");
-    println!("   ```rust");
-    println!("   // Set maximum fee you're willing to pay");
-    println!("   let max_fee = U256::from(5000);  // 0.005 USDC");
-    println!("   ");
-    println!("   let bridge = CctpV2::builder()");
-    println!("       .fast_transfer(true)");
-    println!("       .max_fee(max_fee)  // Optional: defaults to 0 if not set");
-    println!("       .build();");
-    println!("   ```");
-    println!("   If actual fee > max_fee, transaction will revert\n");
+    println!("   ✅ Fast transfer bridge created\n");
 
-    // Step 9: Supported chains
-    println!("9️⃣ Fast Transfer Support:");
-    println!("   All v2 chains support fast transfers:");
-    println!("   ✅ Mainnet chains: Ethereum, Arbitrum, Base, Optimism, etc.");
-    println!("   ✅ Testnet chains: Sepolia, Base Sepolia, Arbitrum Sepolia");
-    println!("   ");
-    println!("   Check programmatically:");
-    println!("   ```rust");
-    println!("   if bridge.supports_fast_transfer() {{");
-    println!("       println!(\"Fast transfers available!\");");
-    println!("   }}");
-    println!("   ```\n");
+    // Display configuration
+    println!("6️⃣  Bridge Configuration:");
+    println!("   Transfer Type: ⚡ Fast");
+    println!("   Finality Threshold: {}", bridge.finality_threshold());
+    println!("   Fast Transfer Enabled: {}", bridge.is_fast_transfer());
+    println!("   Max Fee: {max_fee} USDC atomic units (0.001 USDC)");
+    println!("   Expected Settlement: <30 seconds\n");
 
-    // Step 10: Complete example
-    println!("🔟 Complete Fast Transfer:");
-    println!("   ```rust");
-    println!("   use cctp_rs::{{CctpV2Bridge, CctpBridge}};");
-    println!("   ");
-    println!("   // 1. Create fast transfer bridge");
-    println!("   let bridge = CctpV2Bridge::builder()");
-    println!("       .source_chain(NamedChain::Mainnet)");
-    println!("       .destination_chain(NamedChain::Base)");
-    println!("       .source_provider(eth_provider)");
-    println!("       .destination_provider(base_provider)");
-    println!("       .recipient(recipient)");
-    println!("       .fast_transfer(true)");
-    println!("       .max_fee(U256::from(1000))  // 0.001 USDC max");
-    println!("       .build();");
-    println!("   ");
-    println!("   // 2. Execute fast transfer (all-in-one)");
-    println!("   let (burn_tx, mint_tx) = bridge.transfer(");
-    println!("       U256::from(1_000_000),  // 1 USDC");
-    println!("       sender_address,");
-    println!("       usdc_address,");
-    println!("   ).await?;");
-    println!("   ");
-    println!("   println!(\"✅ Transfer complete in <30 seconds!\");");
-    println!("   println!(\"   Burn TX: {{}}\", burn_tx);");
-    println!("   println!(\"   Mint TX: {{}}\", mint_tx);");
-    println!("   ```\n");
+    // Validate domain IDs
+    println!("7️⃣  Domain ID Validation:");
+    let source_domain = bridge.source_chain().cctp_v2_domain_id()?;
+    let dest_domain = bridge.destination_domain_id()?;
 
-    // Step 11: Monitoring fast transfers
-    println!("1️⃣1️⃣ Monitoring Fast Transfers:");
-    println!("   Fast transfers poll more frequently:");
-    println!("   - Attestation check every 5 seconds");
-    println!("   - Typical completion: 15-25 seconds");
-    println!("   - Maximum wait with defaults: 2.5 minutes (30 attempts × 5s)");
-    println!("   ");
-    println!("   Enable tracing to see polling progress:");
-    println!("   ```rust");
-    println!("   tracing_subscriber::fmt::init();");
-    println!("   ```\n");
+    println!("   Source Domain (Arbitrum Sepolia): {source_domain}");
+    println!("   Destination Domain (Base Sepolia): {dest_domain}");
 
-    // Step 12: Testing
-    println!("1️⃣2️⃣ Testing Fast Transfers:");
-    println!("   Test on Sepolia first:");
-    println!("   ```rust");
-    println!("   let test_bridge = CctpV2Bridge::builder()");
-    println!("       .source_chain(NamedChain::Sepolia)");
-    println!("       .destination_chain(NamedChain::BaseSepolia)");
-    println!("       .fast_transfer(true)");
-    println!("       .max_fee(U256::from(1000))");
-    println!("       .build();");
-    println!("   ```");
-    println!("   Get testnet USDC: https://faucet.circle.com\n");
+    assert_eq!(
+        source_domain.as_u32(),
+        3,
+        "Arbitrum Sepolia should have domain ID 3"
+    );
+    assert_eq!(
+        dest_domain.as_u32(),
+        6,
+        "Base Sepolia should have domain ID 6"
+    );
+    println!("   ✅ Domain IDs correct\n");
 
-    println!("✅ Example complete!");
-    println!("\n💡 Key Takeaways:");
-    println!("   • Fast transfers settle in <30 seconds (vs 10-15 min standard)");
-    println!("   • Fee range: 0-14 bps (most chains are free)");
-    println!("   • Uses finality level 1000 (confirmed blocks)");
-    println!("   • Perfect for time-sensitive DeFi operations");
-    println!("   • All v2 chains support fast transfers");
-    println!("   • Set max_fee to control costs");
+    // Validate API endpoint
+    println!("8️⃣  API Endpoint:");
+    let api_url = bridge.api_url();
+    println!("   {}", api_url.as_str());
+    assert!(
+        api_url.as_str().contains("sandbox"),
+        "Should use sandbox API for testnet"
+    );
+    println!("   ✅ Using sandbox API\n");
+
+    // Transfer configuration
+    let amount = U256::from(1_000_000); // 1 USDC (6 decimals)
+
+    println!("9️⃣  Transfer Details:");
+    println!("   Token: USDC (Arbitrum Sepolia)");
+    println!("   Token Address: {usdc_arbitrum_sepolia}");
+    println!("   Amount: 1.0 USDC");
+    println!("   From: {wallet_address}");
+    println!("   To: {wallet_address} (same address on Base Sepolia)");
+    println!("   Mode: ⚡ Fast Transfer\n");
+
+    // Execute the transfer
+    println!("\n🚀 Starting Fast Transfer...\n");
+
+    // Check and handle ERC20 approval
+    println!("🔟 Approval Phase:");
+    println!("   Checking TokenMessenger allowance...");
+
+    let token_messenger = bridge.token_messenger_v2_contract()?;
+    let current_allowance = bridge
+        .get_allowance(usdc_arbitrum_sepolia, wallet_address)
+        .await?;
+
+    println!(
+        "   Current allowance: {} USDC",
+        format_usdc_balance(current_allowance)
+    );
+    println!("   TokenMessenger: {token_messenger}");
+
+    if current_allowance < amount {
+        println!("   ⚠️  Insufficient allowance, sending approval transaction...");
+
+        let approval_tx = bridge
+            .approve(usdc_arbitrum_sepolia, wallet_address, amount)
+            .await?;
+        println!("   ✅ Approval TX: {approval_tx}");
+        println!(
+            "   View on Arbitrum Sepolia Etherscan: https://sepolia.arbiscan.io/tx/{approval_tx}"
+        );
+
+        // Wait for approval to be mined
+        println!("   Waiting for approval confirmation...");
+        tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
+    } else {
+        println!("   ✅ Sufficient allowance already granted");
+    }
+
+    println!("\n1️⃣1️⃣ Burn Phase (Fast Transfer):");
+    println!("   Burning 1 USDC on Arbitrum Sepolia with fast finality...");
+
+    let burn_tx = bridge
+        .burn(amount, wallet_address, usdc_arbitrum_sepolia)
+        .await?;
+    println!("   ✅ Burn TX: {burn_tx}");
+    println!("   View on Arbitrum Sepolia Etherscan: https://sepolia.arbiscan.io/tx/{burn_tx}");
+
+    println!("\n1️⃣2️⃣ Attestation Phase (Fast Polling):");
+    println!("   Polling Circle API for attestation and message...");
+    println!("   ⚡ Fast transfer polling interval: 5 seconds");
+    println!("   Expected wait: <30 seconds (vs 10-15 minutes standard)\n");
+
+    // Poll for attestation with progress updates
+    // V2 API uses transaction hash, not message hash
+    // Fast transfers poll more frequently (5s vs 60s)
+    let (message, attestation) = bridge.get_attestation(burn_tx, None, None).await?;
+    println!("\n   ✅ Attestation and message received!");
+    println!("   Message length: {} bytes", message.len());
+    println!("   Attestation length: {} bytes", attestation.len());
+
+    println!("\n1️⃣3️⃣ Mint Phase:");
+    println!("   Minting 1 USDC on Base Sepolia...");
+
+    let mint_tx = bridge.mint(message, attestation, wallet_address).await?;
+    println!("   ✅ Mint TX: {mint_tx}");
+    println!("   View on BaseScan: https://base-sepolia.blockscout.com/tx/{mint_tx}");
+
+    println!("\n🎉 Fast Transfer Complete!");
+    println!("   Your 1 USDC has been bridged from Arbitrum Sepolia to Base Sepolia.");
+    println!("   ⚡ Settlement time: <30 seconds (fast transfer mode)");
+    println!("\n   Summary:");
+    println!("   - Burn TX: {burn_tx}");
+    println!("   - Mint TX: {mint_tx}");
+    println!("   - Transfer Mode: Fast (finality level 1000)");
+    println!("\n✅ CCTP v2 Fast Transfer Validation: PASSED");
 
     Ok(())
 }

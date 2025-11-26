@@ -2,14 +2,11 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum CctpError {
-    #[error("Chain not supported: {chain}")]
-    ChainNotSupported { chain: String },
+    #[error("Unsupported chain: {0:?}")]
+    UnsupportedChain(alloy_chains::NamedChain),
 
     #[error("Message already relayed (transfer successful via third party): {original}")]
     AlreadyRelayed { original: String },
-
-    #[error("Unsupported chain: {0:?}")]
-    UnsupportedChain(alloy_chains::NamedChain),
 
     #[error("Not implemented: {0}")]
     NotImplemented(String),

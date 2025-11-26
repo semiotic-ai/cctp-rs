@@ -47,18 +47,16 @@ impl CctpV1 for NamedChain {
             ArbitrumSepolia | AvalancheFuji | BaseSepolia | OptimismSepolia | PolygonAmoy => Ok(20),
             _ => {
                 spans::record_error_with_context(
-                    "ChainNotSupported",
-                    &format!("Chain {} is not supported for CCTP", self),
+                    "UnsupportedChain",
+                    &format!("Chain {self} is not supported for CCTP"),
                     Some("Only Mainnet, Arbitrum, Base, Optimism, Unichain, Avalanche, Polygon and their testnets are supported"),
                 );
                 error!(
-                    chain = %self.to_string(),
+                    chain = ?self,
                     operation = "get_confirmation_time",
                     event = "chain_not_supported"
                 );
-                Err(CctpError::ChainNotSupported {
-                    chain: self.to_string(),
-                })
+                Err(CctpError::UnsupportedChain(*self))
             }
         }
     }
@@ -76,18 +74,16 @@ impl CctpV1 for NamedChain {
             Unichain => Ok(DomainId::Unichain),
             _ => {
                 spans::record_error_with_context(
-                    "ChainNotSupported",
+                    "UnsupportedChain",
                     &format!("Chain {self} does not have a CCTP domain ID"),
                     Some("Check Circle's documentation for supported chains"),
                 );
                 error!(
-                    chain = %self.to_string(),
+                    chain = ?self,
                     operation = "get_domain_id",
                     event = "chain_not_supported"
                 );
-                Err(CctpError::ChainNotSupported {
-                    chain: self.to_string(),
-                })
+                Err(CctpError::UnsupportedChain(*self))
             }
         }
     }
@@ -108,18 +104,16 @@ impl CctpV1 for NamedChain {
             Unichain => Ok(UNICHAIN_CCTP_V1_TOKEN_MESSENGER),
             _ => {
                 spans::record_error_with_context(
-                    "ChainNotSupported",
-                    &format!("Chain {} does not have a TokenMessenger contract", self),
+                    "UnsupportedChain",
+                    &format!("Chain {self} does not have a TokenMessenger contract"),
                     Some("TokenMessenger contracts are only deployed on supported CCTP chains"),
                 );
                 error!(
-                    chain = %self.to_string(),
+                    chain = ?self,
                     operation = "get_token_messenger_address",
                     event = "chain_not_supported"
                 );
-                Err(CctpError::ChainNotSupported {
-                    chain: self.to_string(),
-                })
+                Err(CctpError::UnsupportedChain(*self))
             }
         }
     }
@@ -141,18 +135,16 @@ impl CctpV1 for NamedChain {
             Unichain => Ok(UNICHAIN_CCTP_V1_MESSAGE_TRANSMITTER),
             _ => {
                 spans::record_error_with_context(
-                    "ChainNotSupported",
-                    &format!("Chain {} does not have a MessageTransmitter contract", self),
+                    "UnsupportedChain",
+                    &format!("Chain {self} does not have a MessageTransmitter contract"),
                     Some("MessageTransmitter contracts are only deployed on supported CCTP chains"),
                 );
                 error!(
-                    chain = %self.to_string(),
+                    chain = ?self,
                     operation = "get_message_transmitter_address",
                     event = "chain_not_supported"
                 );
-                Err(CctpError::ChainNotSupported {
-                    chain: self.to_string(),
-                })
+                Err(CctpError::UnsupportedChain(*self))
             }
         }
     }
@@ -232,7 +224,7 @@ mod tests {
         assert!(result.is_err());
         assert!(matches!(
             result.unwrap_err(),
-            CctpError::ChainNotSupported { .. }
+            CctpError::UnsupportedChain(_)
         ));
     }
 
@@ -257,7 +249,7 @@ mod tests {
         assert!(result.is_err());
         assert!(matches!(
             result.unwrap_err(),
-            CctpError::ChainNotSupported { .. }
+            CctpError::UnsupportedChain(_)
         ));
     }
 
@@ -286,7 +278,7 @@ mod tests {
         assert!(result.is_err());
         assert!(matches!(
             result.unwrap_err(),
-            CctpError::ChainNotSupported { .. }
+            CctpError::UnsupportedChain(_)
         ));
     }
 
@@ -318,7 +310,7 @@ mod tests {
         assert!(result.is_err());
         assert!(matches!(
             result.unwrap_err(),
-            CctpError::ChainNotSupported { .. }
+            CctpError::UnsupportedChain(_)
         ));
     }
 

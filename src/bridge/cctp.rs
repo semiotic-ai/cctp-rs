@@ -247,7 +247,10 @@ impl<P: Provider<Ethereum> + Clone> Cctp<P> {
         );
         let _guard = span.enter();
 
-        let client = Client::new();
+        let client = Client::builder()
+            .timeout(Duration::from_secs(30))
+            .build()
+            .map_err(CctpError::Network)?;
         let url = self.create_url(message_hash)?;
 
         info!(
@@ -495,7 +498,7 @@ mod tests {
         assert!(result.is_err());
         assert!(matches!(
             result.unwrap_err(),
-            CctpError::ChainNotSupported { .. }
+            CctpError::UnsupportedChain(_)
         ));
     }
 

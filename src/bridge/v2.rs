@@ -345,7 +345,10 @@ impl<P: Provider<Ethereum> + Clone> CctpV2<P> {
         );
         let _guard = span.enter();
 
-        let client = Client::new();
+        let client = Client::builder()
+            .timeout(Duration::from_secs(30))
+            .build()
+            .map_err(CctpError::Network)?;
         let url = self.create_url(tx_hash)?;
 
         info!(
@@ -1164,7 +1167,7 @@ impl<P: Provider<Ethereum> + Clone> CctpV2<P> {
     /// # Errors
     ///
     /// Returns `CctpError::InvalidUrl` if URL construction fails, or
-    /// `CctpError::ChainNotSupported` if the source chain doesn't have a v2 domain ID.
+    /// `CctpError::UnsupportedChain` if the source chain doesn't have a v2 domain ID.
     ///
     /// # Example
     ///

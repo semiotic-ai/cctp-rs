@@ -327,7 +327,7 @@ fn demonstrate_chain_validation_error() {
     println!("║         Example 3: Chain Validation Error Tracking          ║");
     println!("╚══════════════════════════════════════════════════════════════╝");
     println!("\nThis demonstrates error tracking for unsupported chains.");
-    println!("Watch for ChainNotSupported errors with context.\n");
+    println!("Watch for UnsupportedChain errors with context.\n");
 
     let span = info_span!(
         "chain_validation_demonstration",

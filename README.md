@@ -158,7 +158,7 @@ use cctp_rs::CctpError;
 match bridge.get_attestation(message_hash, None, None).await {
     Ok(attestation) => println!("Success: {} bytes", attestation.len()),
     Err(CctpError::AttestationTimeout) => println!("Timeout waiting for attestation"),
-    Err(CctpError::ChainNotSupported { chain }) => println!("Chain {} not supported", chain),
+    Err(CctpError::UnsupportedChain(chain)) => println!("Chain {chain:?} not supported"),
     Err(e) => println!("Other error: {}", e),
 }
 

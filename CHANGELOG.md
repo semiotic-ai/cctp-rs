@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2025-11-26
+
+### Changed
+
+- Removed unused chain confirmation configuration from bridge config module
+  - Removed `DEFAULT_CONFIRMATION_TIMEOUT` constant
+  - Removed `CHAIN_CONFIRMATION_CONFIG` constant
+  - Removed `get_chain_confirmation_config()` function
+  - These were dead code (marked with `#[allow(dead_code)]`) and never called
+  - The SDK correctly delegates finality validation to Circle's attestation service
+
+---
+
 ## [1.0.0] - 2025-11-25
 
 ### Summary

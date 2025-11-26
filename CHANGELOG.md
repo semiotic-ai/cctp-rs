@@ -5,6 +5,51 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2025-11-26
+
+### Changed
+
+- **BREAKING**: Replaced `Option<u32>, Option<u64>` parameters in `get_attestation()` with `PollingConfig` struct
+  - Before: `bridge.get_attestation(hash, Some(20), Some(30)).await?`
+  - After: `bridge.get_attestation(hash, PollingConfig::default().with_max_attempts(20).with_poll_interval_secs(30)).await?`
+
+### Added
+
+- New `PollingConfig` struct for self-documenting attestation polling configuration
+  - `PollingConfig::default()` - Standard v1 transfers (30 attempts, 60s intervals)
+  - `PollingConfig::fast_transfer()` - Optimized for v2 fast transfers (30 attempts, 5s intervals)
+  - Builder methods: `with_max_attempts()`, `with_poll_interval_secs()`
+  - Helper method: `total_timeout_secs()` to calculate maximum wait time
+
+### Migration Guide
+
+```rust
+// V1 - Before (1.x)
+let attestation = bridge.get_attestation(message_hash, None, None).await?;
+let attestation = bridge.get_attestation(message_hash, Some(20), Some(30)).await?;
+
+// V1 - After (2.0)
+use cctp_rs::PollingConfig;
+let attestation = bridge.get_attestation(message_hash, PollingConfig::default()).await?;
+let attestation = bridge.get_attestation(
+    message_hash,
+    PollingConfig::default()
+        .with_max_attempts(20)
+        .with_poll_interval_secs(30),
+).await?;
+
+// V2 - Before (1.x)
+let (message, attestation) = bridge.get_attestation(tx_hash, None, None).await?;
+
+// V2 - After (2.0)
+let (message, attestation) = bridge.get_attestation(
+    tx_hash,
+    PollingConfig::fast_transfer(),  // or PollingConfig::default() for standard
+).await?;
+```
+
+---
+
 ## [1.1.0] - 2025-11-26
 
 ### Changed

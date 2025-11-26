@@ -8,7 +8,7 @@
 //! ## Quick Start (V1)
 //!
 //! ```rust,no_run
-//! use cctp_rs::{Cctp, CctpError};
+//! use cctp_rs::{Cctp, CctpError, PollingConfig};
 //! use alloy_chains::NamedChain;
 //! use alloy_primitives::FixedBytes;
 //!
@@ -29,7 +29,7 @@
 //! // Get message from burn transaction, then fetch attestation
 //! let burn_tx_hash = FixedBytes::from([0u8; 32]);
 //! let (message, message_hash) = bridge.get_message_sent_event(burn_tx_hash).await?;
-//! let attestation = bridge.get_attestation(message_hash, None, None).await?;
+//! let attestation = bridge.get_attestation(message_hash, PollingConfig::default()).await?;
 //! # Ok(())
 //! # }
 //! ```
@@ -37,7 +37,7 @@
 //! ## Quick Start (V2)
 //!
 //! ```rust,no_run
-//! use cctp_rs::{CctpV2Bridge, CctpError};
+//! use cctp_rs::{CctpV2Bridge, CctpError, PollingConfig};
 //! use alloy_chains::NamedChain;
 //! use alloy_primitives::FixedBytes;
 //!
@@ -58,7 +58,10 @@
 //!
 //! // V2 uses transaction hash directly and returns both message and attestation
 //! let burn_tx_hash = FixedBytes::from([0u8; 32]);
-//! let (message, attestation) = bridge.get_attestation(burn_tx_hash, None, None).await?;
+//! let (message, attestation) = bridge.get_attestation(
+//!     burn_tx_hash,
+//!     PollingConfig::fast_transfer(),  // Optimized for fast transfers
+//! ).await?;
 //! # Ok(())
 //! # }
 //! ```
@@ -95,6 +98,7 @@
 //! - [`AttestationResponse`] and [`AttestationStatus`] - Circle's Iris API attestation types
 //! - [`Cctp`] and [`CctpV2Bridge`] - Core CCTP bridge implementations for v1 and v2
 //! - [`CctpV1`] and [`CctpV2`] - Traits for chain-specific configurations
+//! - [`PollingConfig`] - Configuration for attestation polling behavior
 //! - [`CctpError`] and [`Result`] - Error types for error handling
 //! - Contract wrappers for direct contract interaction:
 //!   - v1: [`TokenMessengerContract`], [`MessageTransmitterContract`]
@@ -107,7 +111,7 @@ mod error;
 mod protocol;
 
 // Public API - minimal surface for 1.0.0 stability
-pub use bridge::{Cctp, CctpBridge, CctpV2 as CctpV2Bridge, MintResult};
+pub use bridge::{Cctp, CctpBridge, CctpV2 as CctpV2Bridge, MintResult, PollingConfig};
 pub use chain::addresses::{
     CCTP_V2_MESSAGE_TRANSMITTER_MAINNET, CCTP_V2_MESSAGE_TRANSMITTER_TESTNET,
     CCTP_V2_TOKEN_MESSENGER_MAINNET, CCTP_V2_TOKEN_MESSENGER_TESTNET,

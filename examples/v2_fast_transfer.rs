@@ -364,7 +364,9 @@ async fn main() -> Result<(), CctpError> {
     // Poll for attestation with progress updates
     // V2 API uses transaction hash, not message hash
     // Fast transfers poll more frequently (5s vs 60s)
-    let (message, attestation) = bridge.get_attestation(burn_tx, None, None).await?;
+    let (message, attestation) = bridge
+        .get_attestation(burn_tx, cctp_rs::PollingConfig::fast_transfer())
+        .await?;
     println!("\n   ✅ Attestation and message received!");
     println!("   Message length: {} bytes", message.len());
     println!("   Attestation length: {} bytes", attestation.len());

@@ -15,7 +15,7 @@ use tracing::{debug, error, info};
 use url::Url;
 
 use super::bridge_trait::CctpBridge;
-use super::config::{ATTESTATION_PATH_V1, IRIS_API, IRIS_API_SANDBOX};
+use super::config::{PollingConfig, ATTESTATION_PATH_V1, IRIS_API, IRIS_API_SANDBOX};
 use crate::contracts::message_transmitter::MessageTransmitter::MessageSent;
 use crate::protocol::FinalityThreshold;
 
@@ -199,8 +199,7 @@ impl<P: Provider<Ethereum> + Clone> Cctp<P> {
     /// # Arguments
     ///
     /// * `message_hash` - The keccak256 hash of the MessageSent event bytes
-    /// * `max_attempts` - Maximum number of polling attempts (default: 30)
-    /// * `poll_interval` - Time to wait between polling attempts in seconds (default: 60)
+    /// * `polling_config` - Configuration for polling behavior (attempts, intervals)
     ///
     /// # Returns
     ///
@@ -216,27 +215,29 @@ impl<P: Provider<Ethereum> + Clone> Cctp<P> {
     /// # Example
     ///
     /// ```rust,ignore
+    /// use cctp_rs::PollingConfig;
+    ///
     /// // Get the message from the burn transaction
     /// let (message, message_hash) = bridge.get_message_sent_event(burn_tx_hash).await?;
     ///
-    /// // Poll for attestation (default: 30 attempts, 60 seconds apart)
-    /// let attestation = bridge.get_attestation(message_hash, None, None).await?;
+    /// // Poll for attestation with default settings (30 attempts, 60 seconds apart)
+    /// let attestation = bridge.get_attestation(message_hash, PollingConfig::default()).await?;
     ///
     /// // Or with custom retry settings
     /// let attestation = bridge.get_attestation(
     ///     message_hash,
-    ///     Some(20),  // max 20 attempts
-    ///     Some(30),  // 30 seconds between polls
+    ///     PollingConfig::default()
+    ///         .with_max_attempts(20)
+    ///         .with_poll_interval_secs(30),
     /// ).await?;
     /// ```
     pub async fn get_attestation(
         &self,
         message_hash: FixedBytes<32>,
-        max_attempts: Option<u32>,
-        poll_interval: Option<u64>,
+        polling_config: PollingConfig,
     ) -> Result<AttestationBytes> {
-        let max_attempts = max_attempts.unwrap_or(30);
-        let poll_interval = poll_interval.unwrap_or(60);
+        let max_attempts = polling_config.max_attempts;
+        let poll_interval = polling_config.poll_interval_secs;
 
         let span = spans::get_attestation_with_retry(
             &message_hash,

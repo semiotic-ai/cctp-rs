@@ -236,8 +236,9 @@ async fn demonstrate_complete_bridge_flow(
     match bridge
         .get_attestation(
             message_hash,
-            Some(3), // 3 attempts for demo
-            Some(2), // 2 second intervals
+            cctp_rs::PollingConfig::default()
+                .with_max_attempts(3)
+                .with_poll_interval_secs(2),
         )
         .await
     {
@@ -304,8 +305,9 @@ async fn demonstrate_error_tracking(
     match bridge
         .get_attestation(
             invalid_hash,
-            Some(2), // Only 2 attempts
-            Some(1), // 1 second intervals
+            cctp_rs::PollingConfig::default()
+                .with_max_attempts(2)
+                .with_poll_interval_secs(1),
         )
         .await
     {

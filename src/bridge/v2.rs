@@ -28,7 +28,7 @@ pub enum MintResult {
 }
 
 use super::bridge_trait::CctpBridge;
-use super::config::{IRIS_API, IRIS_API_SANDBOX, MESSAGES_PATH_V2};
+use super::config::{PollingConfig, IRIS_API, IRIS_API_SANDBOX, MESSAGES_PATH_V2};
 use crate::contracts::erc20::Erc20Contract;
 use crate::contracts::message_transmitter::MessageTransmitter::MessageSent;
 use crate::contracts::v2::{MessageTransmitterV2Contract, TokenMessengerV2Contract};
@@ -290,8 +290,8 @@ impl<P: Provider<Ethereum> + Clone> CctpV2<P> {
     /// # Arguments
     ///
     /// * `tx_hash` - The hash of the burn transaction on the source chain
-    /// * `max_attempts` - Maximum number of polling attempts (default: 30)
-    /// * `poll_interval` - Time between polls in seconds (default: 5 for fast transfer, 60 for standard)
+    /// * `polling_config` - Configuration for polling behavior (attempts, intervals).
+    ///   Use `PollingConfig::fast_transfer()` for fast transfers or `PollingConfig::default()` for standard.
     ///
     /// # Returns
     ///
@@ -309,14 +309,20 @@ impl<P: Provider<Ethereum> + Clone> CctpV2<P> {
     /// # Example
     ///
     /// ```rust,ignore
-    /// // Get attestation for a burn transaction (v2 uses tx hash, not message hash)
-    /// let (message, attestation) = bridge.get_attestation(burn_tx_hash, None, None).await?;
+    /// use cctp_rs::PollingConfig;
+    ///
+    /// // Get attestation for a burn transaction with fast transfer polling
+    /// let (message, attestation) = bridge.get_attestation(
+    ///     burn_tx_hash,
+    ///     PollingConfig::fast_transfer(),
+    /// ).await?;
     ///
     /// // Or with custom retry settings
     /// let (message, attestation) = bridge.get_attestation(
     ///     burn_tx_hash,
-    ///     Some(60),  // max 60 attempts
-    ///     Some(10),  // 10 seconds between polls
+    ///     PollingConfig::default()
+    ///         .with_max_attempts(60)
+    ///         .with_poll_interval_secs(10),
     /// ).await?;
     ///
     /// // Use the returned message (NOT from get_message_sent_event) for minting
@@ -325,16 +331,10 @@ impl<P: Provider<Ethereum> + Clone> CctpV2<P> {
     pub async fn get_attestation(
         &self,
         tx_hash: TxHash,
-        max_attempts: Option<u32>,
-        poll_interval: Option<u64>,
+        polling_config: PollingConfig,
     ) -> Result<(Vec<u8>, AttestationBytes)> {
-        // Adjust defaults based on fast transfer mode
-        let max_attempts = max_attempts.unwrap_or(30);
-        let poll_interval = poll_interval.unwrap_or(if self.fast_transfer {
-            5 // Fast transfers poll more frequently (5 seconds)
-        } else {
-            60 // Standard transfers poll every minute
-        });
+        let max_attempts = polling_config.max_attempts;
+        let poll_interval = polling_config.poll_interval_secs;
 
         let span = spans::get_v2_attestation_with_retry(
             tx_hash,
@@ -700,7 +700,10 @@ impl<P: Provider<Ethereum> + Clone> CctpV2<P> {
     /// # Example
     ///
     /// ```rust,ignore
-    /// let (message, _attestation) = bridge.get_attestation(burn_tx, None, None).await?;
+    /// let (message, _attestation) = bridge.get_attestation(
+    ///     burn_tx,
+    ///     PollingConfig::fast_transfer(),
+    /// ).await?;
     /// if bridge.is_message_received(&message).await? {
     ///     println!("Transfer already complete!");
     /// }
@@ -748,7 +751,10 @@ impl<P: Provider<Ethereum> + Clone> CctpV2<P> {
     ///
     /// ```rust,ignore
     /// let burn_tx = bridge.burn(amount, from, usdc).await?;
-    /// let (message, _attestation) = bridge.get_attestation(burn_tx, None, None).await?;
+    /// let (message, _attestation) = bridge.get_attestation(
+    ///     burn_tx,
+    ///     PollingConfig::fast_transfer(),
+    /// ).await?;
     ///
     /// // Wait for completion (relayer or self)
     /// bridge.wait_for_receive(&message, None, None).await?;
@@ -832,7 +838,10 @@ impl<P: Provider<Ethereum> + Clone> CctpV2<P> {
     ///
     /// ```rust,ignore
     /// let burn_tx = bridge.burn(amount, from, usdc).await?;
-    /// let (message, attestation) = bridge.get_attestation(burn_tx, None, None).await?;
+    /// let (message, attestation) = bridge.get_attestation(
+    ///     burn_tx,
+    ///     PollingConfig::fast_transfer(),
+    /// ).await?;
     ///
     /// match bridge.mint_if_needed(message, attestation, from).await? {
     ///     MintResult::Minted(tx) => println!("We minted: {tx}"),
@@ -1128,7 +1137,13 @@ impl<P: Provider<Ethereum> + Clone> CctpV2<P> {
         // Note: The MessageSent event log contains zeros in the nonce field.
         // Circle fills in the actual nonce before signing, so we must use the message
         // returned by get_attestation (from Circle's API), not from the event log.
-        let (message_bytes, attestation) = self.get_attestation(burn_tx_hash, None, None).await?;
+        let polling_config = if self.fast_transfer {
+            PollingConfig::fast_transfer()
+        } else {
+            PollingConfig::default()
+        };
+        let (message_bytes, attestation) =
+            self.get_attestation(burn_tx_hash, polling_config).await?;
 
         info!(
             burn_tx_hash = %burn_tx_hash,

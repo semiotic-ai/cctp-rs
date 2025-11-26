@@ -41,7 +41,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-cctp-rs = "1.0.0"
+cctp-rs = "1.2"
 ```
 
 ### Basic Example
@@ -84,7 +84,7 @@ async fn main() -> Result<(), CctpError> {
 ### Bridging USDC (V1)
 
 ```rust
-use cctp_rs::{Cctp, CctpError};
+use cctp_rs::{Cctp, CctpError, PollingConfig};
 use alloy_chains::NamedChain;
 use alloy_primitives::{Address, U256};
 use alloy_provider::Provider;
@@ -97,7 +97,7 @@ async fn bridge_usdc_v1<P: Provider + Clone>(bridge: &Cctp<P>) -> Result<(), Cct
     let (message, message_hash) = bridge.get_message_sent_event(burn_tx_hash).await?;
 
     // Step 3: Wait for attestation from Circle's API
-    let attestation = bridge.get_attestation(message_hash, None, None).await?;
+    let attestation = bridge.get_attestation(message_hash, PollingConfig::default()).await?;
 
     println!("V1 Bridge successful!");
     println!("Message: {} bytes", message.len());
@@ -113,7 +113,7 @@ async fn bridge_usdc_v1<P: Provider + Clone>(bridge: &Cctp<P>) -> Result<(), Cct
 ### Bridging USDC (V2 - Recommended)
 
 ```rust
-use cctp_rs::{CctpV2Bridge, CctpError};
+use cctp_rs::{CctpV2Bridge, CctpError, PollingConfig};
 use alloy_chains::NamedChain;
 use alloy_primitives::{Address, U256};
 use alloy_provider::Provider;
@@ -124,7 +124,10 @@ async fn bridge_usdc_v2<P: Provider + Clone>(bridge: &CctpV2Bridge<P>) -> Result
 
     // Step 2: Get canonical message AND attestation from Circle's API
     // Note: V2 returns both because the on-chain message has zeros in the nonce field
-    let (message, attestation) = bridge.get_attestation(burn_tx_hash, None, None).await?;
+    let (message, attestation) = bridge.get_attestation(
+        burn_tx_hash,
+        PollingConfig::fast_transfer(),  // Optimized for v2 fast transfers
+    ).await?;
 
     println!("V2 Bridge successful!");
     println!("Message: {} bytes", message.len());
@@ -152,10 +155,10 @@ The library is organized into several key modules:
 cctp-rs provides detailed error types for different failure scenarios:
 
 ```rust
-use cctp_rs::CctpError;
+use cctp_rs::{CctpError, PollingConfig};
 
 // V1 example
-match bridge.get_attestation(message_hash, None, None).await {
+match bridge.get_attestation(message_hash, PollingConfig::default()).await {
     Ok(attestation) => println!("Success: {} bytes", attestation.len()),
     Err(CctpError::AttestationTimeout) => println!("Timeout waiting for attestation"),
     Err(CctpError::UnsupportedChain(chain)) => println!("Chain {chain:?} not supported"),
@@ -163,7 +166,7 @@ match bridge.get_attestation(message_hash, None, None).await {
 }
 
 // V2 example (returns both message and attestation)
-match v2_bridge.get_attestation(tx_hash, None, None).await {
+match v2_bridge.get_attestation(tx_hash, PollingConfig::fast_transfer()).await {
     Ok((message, attestation)) => {
         println!("Message: {} bytes", message.len());
         println!("Attestation: {} bytes", attestation.len());
@@ -178,19 +181,33 @@ match v2_bridge.get_attestation(tx_hash, None, None).await {
 ### Custom Polling Configuration
 
 ```rust
+use cctp_rs::PollingConfig;
+
 // V1: Wait up to 10 minutes with 30-second intervals
 let attestation = bridge.get_attestation(
     message_hash,
-    Some(20),        // max attempts
-    Some(30),        // poll interval in seconds
+    PollingConfig::default()
+        .with_max_attempts(20)
+        .with_poll_interval_secs(30),
 ).await?;
 
-// V2: Same parameters, but returns (message, attestation)
+// V2: Use preset for fast transfers (5 second intervals)
 let (message, attestation) = v2_bridge.get_attestation(
     tx_hash,
-    Some(20),        // max attempts
-    Some(30),        // poll interval in seconds
+    PollingConfig::fast_transfer(),
 ).await?;
+
+// V2: Or customize for your needs
+let (message, attestation) = v2_bridge.get_attestation(
+    tx_hash,
+    PollingConfig::default()
+        .with_max_attempts(60)
+        .with_poll_interval_secs(10),
+).await?;
+
+// Check total timeout
+let config = PollingConfig::default();
+println!("Max wait time: {} seconds", config.total_timeout_secs());
 ```
 
 ### Chain Configuration
@@ -224,11 +241,14 @@ CCTP v2 is **permissionless** - anyone can relay a message once Circle's attesta
 If you don't need to self-relay, just wait for the transfer to complete:
 
 ```rust
-use cctp_rs::CctpV2Bridge;
+use cctp_rs::{CctpV2Bridge, PollingConfig};
 
 async fn wait_for_transfer<P: Provider + Clone>(bridge: &CctpV2Bridge<P>) -> Result<(), CctpError> {
     let burn_tx = bridge.burn(amount, from, usdc).await?;
-    let (message, _attestation) = bridge.get_attestation(burn_tx, None, None).await?;
+    let (message, _attestation) = bridge.get_attestation(
+        burn_tx,
+        PollingConfig::fast_transfer(),
+    ).await?;
 
     // Wait for completion (by relayer or self)
     bridge.wait_for_receive(&message, None, None).await?;
@@ -242,11 +262,14 @@ async fn wait_for_transfer<P: Provider + Clone>(bridge: &CctpV2Bridge<P>) -> Res
 If you want to try minting yourself but handle relayer races:
 
 ```rust
-use cctp_rs::{CctpV2Bridge, MintResult};
+use cctp_rs::{CctpV2Bridge, MintResult, PollingConfig};
 
 async fn self_relay<P: Provider + Clone>(bridge: &CctpV2Bridge<P>) -> Result<(), CctpError> {
     let burn_tx = bridge.burn(amount, from, usdc).await?;
-    let (message, attestation) = bridge.get_attestation(burn_tx, None, None).await?;
+    let (message, attestation) = bridge.get_attestation(
+        burn_tx,
+        PollingConfig::fast_transfer(),
+    ).await?;
 
     match bridge.mint_if_needed(message, attestation, from).await? {
         MintResult::Minted(tx) => println!("We minted: {tx}"),

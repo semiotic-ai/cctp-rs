@@ -5,6 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0] - 2025-11-25
+
+### Summary
+
+**First stable release!** This release marks production-readiness with comprehensive CCTP v1 and v2 support, 155 passing tests, and zero clippy warnings.
+
+### Highlights
+
+- **Full CCTP v1/v2 Protocol Support**: Type-safe interfaces for both protocol versions
+- **Relayer-Aware API**: Graceful handling of permissionless relay model with `MintResult` enum
+- **Production Observability**: Comprehensive OpenTelemetry instrumentation
+- **Robust Error Handling**: Consolidated error types with HTTP client timeouts
+
+### Added
+
+- HTTP client timeout (30 seconds) to prevent indefinite hangs on network issues
+
+### Changed
+
+- **BREAKING**: Consolidated duplicate error variants - removed `ChainNotSupported { chain: String }`, keeping only `UnsupportedChain(NamedChain)` for type safety and zero allocation
+
+### Fixed
+
+- Error handling now uses consistent, type-safe error variants throughout
+
+---
+
 ## [0.16.0] - 2025-11-25
 
 ### Added

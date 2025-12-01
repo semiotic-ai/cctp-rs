@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2025 Semiotic AI, Inc.
+//
+// SPDX-License-Identifier: Apache-2.0
 //! CCTP v2 Fast Transfer Example
 //!
 //! This example demonstrates how to perform a fast CCTP v2 transfer with <30 second settlement.

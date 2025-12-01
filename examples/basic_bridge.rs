@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2025 Semiotic AI, Inc.
+//
+// SPDX-License-Identifier: Apache-2.0
 //! Basic example of bridging USDC using cctp-rs
 //!
 //! This example demonstrates the basic flow of bridging USDC from Ethereum to Arbitrum.

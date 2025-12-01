@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2025 Semiotic AI, Inc.
+//
+// SPDX-License-Identifier: Apache-2.0
 //! CCTP v2 Standard Transfer Example
 //!
 //! This example demonstrates how to perform a standard CCTP v2 transfer between chains.

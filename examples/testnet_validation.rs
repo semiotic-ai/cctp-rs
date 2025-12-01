@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2025 Semiotic AI, Inc.
+//
+// SPDX-License-Identifier: Apache-2.0
 //! Manual Testnet Validation for CCTP v2
 //!
 //! This example performs an actual USDC transfer from Sepolia to Base Sepolia.

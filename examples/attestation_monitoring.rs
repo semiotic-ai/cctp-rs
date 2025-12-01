@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2025 Semiotic AI, Inc.
+//
+// SPDX-License-Identifier: Apache-2.0
 //! Example of monitoring attestation status
 //!
 //! This example shows how to monitor the attestation process and handle different states.

@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2025 Semiotic AI, Inc.
+//
+// SPDX-License-Identifier: Apache-2.0
+
 use crate::error::{CctpError, Result};
 use crate::protocol::{AttestationBytes, FinalityThreshold};
 use crate::{spans, AttestationStatus, CctpV2 as CctpV2Trait, DomainId, V2AttestationResponse};

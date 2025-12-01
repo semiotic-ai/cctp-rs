@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2025 Semiotic AI, Inc.
+//
+// SPDX-License-Identifier: Apache-2.0
 //! Example of multi-chain CCTP support
 //!
 //! This example demonstrates how to work with multiple chains and their configurations.

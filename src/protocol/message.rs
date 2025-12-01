@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2025 Semiotic AI, Inc.
+//
+// SPDX-License-Identifier: Apache-2.0
 //! CCTP v2 message format types
 //!
 //! Circle's CCTP v2 introduces a structured message format with headers and

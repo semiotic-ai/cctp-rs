@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2025 Semiotic AI, Inc.
+//
+// SPDX-License-Identifier: Apache-2.0
 //! CCTP domain ID types for identifying blockchain networks
 //!
 //! Circle's Cross-Chain Transfer Protocol uses domain IDs as unique identifiers

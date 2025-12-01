@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2025 Semiotic AI, Inc.
+//
+// SPDX-License-Identifier: Apache-2.0
 //! OpenTelemetry span helpers for CCTP operations
 //!
 //! This module provides orthogonal span instrumentation following production

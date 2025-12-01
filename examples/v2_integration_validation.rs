@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2025 Semiotic AI, Inc.
+//
+// SPDX-License-Identifier: Apache-2.0
 //! CCTP v2 Integration Validation
 //!
 //! This example validates all v2 configuration without requiring network access.

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2025 Semiotic AI, Inc.
+//
+// SPDX-License-Identifier: Apache-2.0
 //! CCTP v2 finality threshold types
 //!
 //! Circle's CCTP v2 introduces finality thresholds to enable Fast Transfers.

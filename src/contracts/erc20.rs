@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2025 Semiotic AI, Inc.
+//
+// SPDX-License-Identifier: Apache-2.0
 //! ERC20 contract bindings for approval and allowance operations
 //!
 //! This module provides utilities for checking and setting ERC20 token allowances,

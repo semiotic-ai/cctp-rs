@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2025 Semiotic AI, Inc.
+//
+// SPDX-License-Identifier: Apache-2.0
+
 use crate::error::Result;
 use crate::protocol::FinalityThreshold;
 use alloy_chains::NamedChain;

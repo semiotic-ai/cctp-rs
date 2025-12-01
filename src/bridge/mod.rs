@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2025 Semiotic AI, Inc.
+//
+// SPDX-License-Identifier: Apache-2.0
 //! Core CCTP bridge implementation
 //!
 //! This module provides the primary types and functionality for bridging USDC across

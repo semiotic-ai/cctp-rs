@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2025 Semiotic AI, Inc.
+//
+// SPDX-License-Identifier: Apache-2.0
 //! Chain configuration and contract addresses for CCTP
 //!
 //! This module contains chain-specific configuration including contract addresses,

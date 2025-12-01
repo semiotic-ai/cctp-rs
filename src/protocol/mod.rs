@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2025 Semiotic AI, Inc.
+//
+// SPDX-License-Identifier: Apache-2.0
 //! CCTP protocol types and definitions
 //!
 //! This module contains core protocol-level types used in Circle's Cross-Chain

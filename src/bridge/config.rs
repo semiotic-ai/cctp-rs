@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2025 Semiotic AI, Inc.
+//
+// SPDX-License-Identifier: Apache-2.0
+
 /// Circle Iris API environment URLs
 ///
 /// See <https://developers.circle.com/stablecoins/cctp-apis>

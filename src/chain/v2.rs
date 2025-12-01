@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2025 Semiotic AI, Inc.
+//
+// SPDX-License-Identifier: Apache-2.0
 //! CCTP v2 chain configuration trait
 //!
 //! This module defines the `CctpV2` trait which provides v2-specific

@@ -1,0 +1,35 @@
+# SPDX-FileCopyrightText: 2025 Semiotic AI, Inc.
+#
+# SPDX-License-Identifier: Apache-2.0
+
+version = 1
+
+# ABI files from Circle's CCTP contracts (can't have inline headers)
+[[annotations]]
+path = "abis/**/*.json"
+SPDX-FileCopyrightText = "2025 Semiotic AI, Inc."
+SPDX-License-Identifier = "Apache-2.0"
+
+# Package management files
+[[annotations]]
+path = ["Cargo.toml", "Cargo.lock"]
+SPDX-FileCopyrightText = "2025 Semiotic AI, Inc."
+SPDX-License-Identifier = "Apache-2.0"
+
+# Documentation
+[[annotations]]
+path = [
+    "README.md",
+    "CHANGELOG.md",
+    "CONTRIBUTING.md",
+    "TESTNET_VALIDATION.md",
+    "abis/v2/README.md",
+]
+SPDX-FileCopyrightText = "2025 Semiotic AI, Inc."
+SPDX-License-Identifier = "Apache-2.0"
+
+# Configuration files
+[[annotations]]
+path = [".gitignore", ".env.example", ".github/**"]
+SPDX-FileCopyrightText = "2025 Semiotic AI, Inc."
+SPDX-License-Identifier = "Apache-2.0"

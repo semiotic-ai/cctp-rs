@@ -4,6 +4,7 @@
 [![Documentation](https://docs.rs/cctp-rs/badge.svg)](https://docs.rs/cctp-rs)
 [![License](https://img.shields.io/crates/l/cctp-rs.svg)](LICENSE)
 [![Build Status](https://img.shields.io/github/actions/workflow/status/semiotic-ai/cctp-rs/ci.yml?branch=main)](https://github.com/semiotic-ai/cctp-rs/actions)
+[![REUSE status](https://api.reuse.software/badge/github.com/semiotic-ai/cctp-rs)](https://api.reuse.software/info/github.com/semiotic-ai/cctp-rs)
 
 A production-ready Rust implementation of Circle's Cross-Chain Transfer Protocol (CCTP), enabling seamless USDC transfers across blockchain networks.
 

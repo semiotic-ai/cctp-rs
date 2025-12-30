@@ -38,8 +38,8 @@ use crate::protocol::FinalityThreshold;
 /// let bridge = Cctp::builder()
 ///     .source_chain(NamedChain::Mainnet)
 ///     .destination_chain(NamedChain::Arbitrum)
-///     .source_provider(ProviderBuilder::new().on_builtin("http://localhost:8545").await?)
-///     .destination_provider(ProviderBuilder::new().on_builtin("http://localhost:8546").await?)
+///     .source_provider(ProviderBuilder::new().connect("http://localhost:8545").await?)
+///     .destination_provider(ProviderBuilder::new().connect("http://localhost:8546").await?)
 ///     .recipient("0x...".parse()?)
 ///     .build();
 /// # Ok(())

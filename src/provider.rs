@@ -6,6 +6,77 @@
 //!
 //! This module provides helpers for gas estimation and provider configuration
 //! to improve reliability of cross-chain transfers.
+//!
+//! # Production Provider Configuration
+//!
+//! For production deployments, configure your providers with retry logic and timeouts.
+//! Alloy supports Tower layers for middleware-style request handling.
+//!
+//! ## Using Throttle for Rate Limiting
+//!
+//! Enable the `throttle` feature on `alloy-provider` and use the throttle layer:
+//!
+//! ```rust,ignore
+//! use alloy_provider::ProviderBuilder;
+//! use std::time::Duration;
+//!
+//! // Provider with 10 requests/second rate limit
+//! let provider = ProviderBuilder::new()
+//!     .throttle(10)  // 10 RPS limit
+//!     .connect_http("https://eth.llamarpc.com".parse()?)
+//!     .await?;
+//! ```
+//!
+//! ## Custom Retry Logic with Error Detection
+//!
+//! Use the typed error detection methods for implementing retry logic:
+//!
+//! ```rust,ignore
+//! use cctp_rs::{CctpError, ProviderConfig};
+//! use std::time::Duration;
+//! use tokio::time::sleep;
+//!
+//! async fn with_retry<T, F, Fut>(config: &ProviderConfig, mut f: F) -> Result<T, CctpError>
+//! where
+//!     F: FnMut() -> Fut,
+//!     Fut: std::future::Future<Output = Result<T, CctpError>>,
+//! {
+//!     let mut attempts = 0;
+//!     loop {
+//!         attempts += 1;
+//!         match f().await {
+//!             Ok(result) => return Ok(result),
+//!             Err(e) if e.is_transient() && attempts < config.retry_attempts => {
+//!                 // Transient error - retry with exponential backoff
+//!                 let backoff = Duration::from_millis(200 * 2u64.pow(attempts - 1));
+//!                 sleep(backoff.min(config.timeout)).await;
+//!                 continue;
+//!             }
+//!             Err(e) if e.is_rate_limited() && attempts < config.retry_attempts => {
+//!                 // Rate limited - wait longer before retry
+//!                 sleep(Duration::from_secs(5)).await;
+//!                 continue;
+//!             }
+//!             Err(e) => return Err(e),
+//!         }
+//!     }
+//! }
+//!
+//! // Usage:
+//! let config = ProviderConfig::high_reliability();
+//! let result = with_retry(&config, || async {
+//!     bridge.get_attestation(tx_hash, polling_config).await
+//! }).await?;
+//! ```
+//!
+//! ## Recommended Configurations
+//!
+//! | Use Case | Configuration | Description |
+//! |----------|--------------|-------------|
+//! | Fast transfers | `ProviderConfig::fast_transfer()` | 5 retries, 15s timeout |
+//! | Reliable batch ops | `ProviderConfig::high_reliability()` | 10 retries, 60s timeout |
+//! | Public endpoints | `ProviderConfig::rate_limited(5)` | 3 retries, 30s timeout, 5 RPS |
+//! | Default | `ProviderConfig::default()` | 3 retries, 30s timeout |
 
 use crate::error::{CctpError, Result};
 use alloy_network::Ethereum;

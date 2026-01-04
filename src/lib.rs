@@ -115,7 +115,10 @@ mod protocol;
 mod provider;
 
 // Public API - minimal surface for 1.0.0 stability
-pub use bridge::{Cctp, CctpBridge, CctpV2 as CctpV2Bridge, MintResult, PollingConfig};
+pub use bridge::{
+    batch_token_checks, batch_token_state, Cctp, CctpBridge, CctpV2 as CctpV2Bridge, MintResult,
+    PollingConfig, TokenState,
+};
 pub use chain::addresses::{
     CCTP_V2_MESSAGE_TRANSMITTER_MAINNET, CCTP_V2_MESSAGE_TRANSMITTER_TESTNET,
     CCTP_V2_TOKEN_MESSENGER_MAINNET, CCTP_V2_TOKEN_MESSENGER_TESTNET,

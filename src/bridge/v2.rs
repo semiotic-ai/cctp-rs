@@ -876,12 +876,8 @@ impl<P: Provider<Ethereum> + Clone> CctpV2<P> {
             }
             Err(e) => {
                 // Race condition: relayer may have completed between our check and mint
-                // Parse error to detect "nonce already used" pattern
-                let error_str = e.to_string().to_lowercase();
-                if error_str.contains("nonce") && error_str.contains("used")
-                    || error_str.contains("already received")
-                    || error_str.contains("already processed")
-                {
+                // Use typed error detection instead of string matching
+                if e.is_already_relayed() {
                     info!(
                         original_error = %e,
                         version = "v2",

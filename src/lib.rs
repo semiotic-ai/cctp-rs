@@ -112,6 +112,7 @@ mod chain;
 mod contracts;
 mod error;
 mod protocol;
+mod provider;
 
 // Public API - minimal surface for 1.0.0 stability
 pub use bridge::{Cctp, CctpBridge, CctpV2 as CctpV2Bridge, MintResult, PollingConfig};
@@ -130,6 +131,11 @@ pub use error::{CctpError, Result};
 pub use protocol::{
     AttestationBytes, AttestationResponse, AttestationStatus, BurnMessageV2, DomainId,
     FinalityThreshold, MessageHeader, V2AttestationResponse, V2Message,
+};
+pub use provider::{
+    calculate_gas_price_with_buffer, estimate_gas_with_buffer, ProviderConfig,
+    ProviderConfigBuilder, DEFAULT_GAS_BUFFER_PERCENT, DEFAULT_RETRY_ATTEMPTS,
+    DEFAULT_TIMEOUT_SECS,
 };
 
 // Public module for advanced users who need custom instrumentation

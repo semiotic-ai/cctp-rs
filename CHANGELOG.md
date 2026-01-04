@@ -5,6 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0] - 2026-01-04
+
+### Added
+
+- **Typed error detection methods** on `CctpError` for robust error handling:
+  - `is_already_relayed()`: Detect when a CCTP message was already relayed by a third party
+  - `is_timeout()`: Check for timeout errors (attestation or network)
+  - `is_rate_limited()`: Detect HTTP 429 rate limiting responses
+  - `is_transient()`: Identify retriable errors (timeouts, rate limits, network issues)
+
+- **Batch token check helpers** for parallel RPC calls:
+  - `batch_token_checks()`: Fetch allowance and balance concurrently using `tokio::join!`
+  - `batch_token_state()`: Returns structured `TokenState` with helper methods
+  - `TokenState` struct with `can_transfer()`, `needs_approval()`, `has_sufficient_balance()`
+
+- **Provider utilities** for gas estimation and configuration:
+  - `estimate_gas_with_buffer()`: Gas estimation with configurable safety buffer (default 20%)
+  - `calculate_gas_price_with_buffer()`: EIP-1559 gas price calculation with tip buffer
+  - `ProviderConfig` struct with presets: `fast_transfer()`, `high_reliability()`, `rate_limited()`
+
+- **Production retry documentation** with patterns for throttle usage and custom retry logic
+
+### Changed
+
+- Refactored `mint_if_needed()` to use typed `is_already_relayed()` instead of string matching
+
+---
+
 ## [2.0.0] - 2025-11-26
 
 ### Changed

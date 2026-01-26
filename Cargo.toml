@@ -27,7 +27,7 @@ alloy-provider = { version = "1.4", default-features = false, features = [
 ] }
 alloy-rpc-types = "1.4"
 alloy-sol-types = { version = "1.5", features = ["json"] }
-alloy-transport = { version = "1.4", default-features = false }
+alloy-transport = { version = "1.5", default-features = false }
 async-trait = "0.1"
 bon = "3.8"
 dotenvy = "0.15"

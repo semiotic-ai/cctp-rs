@@ -13,7 +13,7 @@ repository = "https://github.com/semiotic-ai/cctp-rs"
 
 [dependencies]
 alloy-chains = "0.2"
-alloy-contract = { version = "1.4", default-features = false }
+alloy-contract = { version = "1.5", default-features = false }
 alloy-dyn-abi = { version = "1.5", default-features = false }
 alloy-json-rpc = { version = "1.4", default-features = false }
 alloy-network = { version = "1.5", default-features = false }

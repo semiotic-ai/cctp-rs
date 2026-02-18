@@ -13,23 +13,23 @@ repository = "https://github.com/semiotic-ai/cctp-rs"
 
 [dependencies]
 alloy-chains = "0.2"
-alloy-contract = { version = "1.6", default-features = false }
+alloy-contract = { version = "1.7", default-features = false }
 alloy-dyn-abi = { version = "1.5", default-features = false }
-alloy-json-rpc = { version = "1.6", default-features = false }
-alloy-network = { version = "1.6", default-features = false }
+alloy-json-rpc = { version = "1.7", default-features = false }
+alloy-network = { version = "1.7", default-features = false }
 alloy-primitives = { version = "1.5", default-features = false, features = [
     "std",
     "rlp",
 ] }
-alloy-provider = { version = "1.6", default-features = false, features = [
+alloy-provider = { version = "1.7", default-features = false, features = [
     "anvil-node",
     "reqwest",
 ] }
-alloy-rpc-types = "1.6"
+alloy-rpc-types = "1.7"
 alloy-sol-types = { version = "1.5", features = ["json"] }
-alloy-transport = { version = "1.6", default-features = false }
+alloy-transport = { version = "1.7", default-features = false }
 async-trait = "0.1"
-bon = "3.8"
+bon = "3.9"
 dotenvy = "0.15"
 reqwest = { version = "0.13", features = ["json"] }
 serde = { version = "1.0", features = ["derive"] }
@@ -40,7 +40,7 @@ tracing = "0.1"
 url = "2.5"
 
 [dev-dependencies]
-alloy-signer-local = "1.6"
+alloy-signer-local = "1.7"
 insta = "1.46"
 rstest = "0.26"
 tokio = { version = "1.49", features = [

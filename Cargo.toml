@@ -43,7 +43,7 @@ url = "2.5"
 alloy-signer-local = "1.7"
 insta = "1.46"
 rstest = "0.26"
-tokio = { version = "1.49", features = [
+tokio = { version = "1.50", features = [
     "test-util",
     "macros",
     "rt-multi-thread",

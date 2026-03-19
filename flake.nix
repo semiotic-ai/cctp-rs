@@ -41,7 +41,7 @@
       {
         packages.default = pkgs.rustPlatform.buildRustPackage {
           pname = "cctp-rs";
-          version = "2.1.2";
+          version = "2.1.3";
           src = ./.;
           cargoLock.lockFile = ./Cargo.lock;
 

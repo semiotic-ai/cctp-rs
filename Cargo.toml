@@ -1,6 +1,6 @@
 [package]
 name = "cctp-rs"
-version = "2.1.4"
+version = "2.2.0"
 edition = "2021"
 authors = ["Joseph Livesey <joseph@semiotic.ai>"]
 categories = ["finance", "api-bindings"]
@@ -18,6 +18,7 @@ alloy-dyn-abi = { version = "1.5", default-features = false }
 alloy-json-rpc = { version = "1.7", default-features = false }
 alloy-network = { version = "1.7", default-features = false }
 alloy-primitives = { version = "1.5", default-features = false, features = [
+    "serde",
     "std",
     "rlp",
 ] }

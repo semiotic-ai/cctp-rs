@@ -5,6 +5,35 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.0] - 2026-03-25
+
+### Added
+
+- Agent/tooling-friendly CCTP v2 message inspection API:
+  - `ParsedV2Message` for structured decoding of canonical Circle v2 messages
+  - `ParsedV2MessageSummary` for JSON-friendly summaries suitable for tool outputs
+  - Header helpers for nonce inspection, permissionless relay detection, address extraction, and finality interpretation
+  - Burn message body encode/decode helpers for round-tripping canonical transfer payloads
+- New `ParseMessageError` type for v2 message parsing failures without changing the existing bridge/runtime error surface
+
+### Changed
+
+- Enabled `serde` support on agent-facing public types including:
+  - `PollingConfig`
+  - `MintResult`
+  - `AttestationResponse`, `V2AttestationResponse`, `V2Message`, `AttestationStatus`
+  - `DomainId` and `FinalityThreshold`
+  - `MessageHeader` and `BurnMessageV2`
+- Expanded README and crate docs with agent-tooling guidance for turning canonical Circle v2 messages into structured JSON
+- Avoided redundant message re-encoding in `ParsedV2Message::summary()` when computing both hash and length
+
+### Fixed
+
+- Preserved semver compatibility for `2.x` by keeping `CctpError` unchanged and isolating parser failures in `ParseMessageError`
+- Documented forward-compatibility expectations for `DomainId` serde values and clarified that the current address helpers use EVM `bytes32` address conventions
+
+---
+
 ## [2.1.4] - 2026-03-21
 
 ### Security

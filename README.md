@@ -17,6 +17,7 @@ A production-ready Rust implementation of Circle's Cross-Chain Transfer Protocol
 - 🤝 **Relayer-aware** APIs for permissionless v2 relay handling
 - 🎯 **Programmable hooks** for advanced use cases
 - 🔍 **Comprehensive observability** with OpenTelemetry integration
+- 🤖 **Agent/tooling-friendly message inspection** with serializable v2 parsers
 
 ## Supported Chains
 
@@ -141,6 +142,38 @@ async fn bridge_usdc_v2<P: Provider + Clone>(bridge: &CctpV2Bridge<P>) -> Result
 }
 ```
 
+### Agent Tooling: Inspect a Canonical V2 Message
+
+Tooling layers usually need structured JSON instead of raw message bytes. `ParsedV2Message`
+and `ParsedV2MessageSummary` decode the canonical message returned by Circle's v2 API
+into serializable Rust types.
+
+Parsing failures return `ParseMessageError`, so this inspection path does not expand the
+existing `CctpError` surface used by bridge operations.
+
+`DomainId` values in serialized summaries use `snake_case` strings. Future releases may
+add new domain variants, so older tooling should treat unknown domain strings as a
+forward-compatibility case.
+
+```rust
+use cctp_rs::{CctpV2Bridge, ParsedV2MessageSummary, PollingConfig};
+
+async fn inspect_v2_message<P: alloy_provider::Provider + Clone>(
+    bridge: &CctpV2Bridge<P>,
+    burn_tx_hash: alloy_primitives::TxHash,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let (message, _attestation) = bridge
+        .get_attestation(burn_tx_hash, PollingConfig::fast_transfer())
+        .await?;
+
+    let summary = ParsedV2MessageSummary::parse(&message)?;
+    let json = serde_json::to_string_pretty(&summary)?;
+
+    println!("{json}");
+    Ok(())
+}
+```
+
 ## Architecture
 
 The library is organized into several key modules:
@@ -148,6 +181,7 @@ The library is organized into several key modules:
 - **`bridge`** - Core CCTP bridge implementation
 - **`chain`** - Chain-specific configurations and support
 - **`attestation`** - Attestation response types from Circle's Iris API
+- **`protocol`** - Serializable protocol types plus canonical v2 message parsing
 - **`error`** - Comprehensive error types for proper error handling
 - **`contracts`** - Type-safe bindings for TokenMessenger and MessageTransmitter
 

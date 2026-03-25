@@ -9,6 +9,7 @@
 //!
 //! Reference: <https://developers.circle.com/cctp/technical-guide>
 
+use serde::{Deserialize, Serialize};
 use std::fmt;
 
 /// Finality threshold for CCTP v2 messages
@@ -29,7 +30,8 @@ use std::fmt;
 /// let standard = FinalityThreshold::Standard;
 /// assert_eq!(standard.as_u32(), 2000);
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 #[repr(u32)]
 pub enum FinalityThreshold {
     /// Fast Transfer - Attestation at confirmed block level (threshold: 1000)

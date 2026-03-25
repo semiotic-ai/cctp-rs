@@ -17,4 +17,6 @@ pub use attestation::{
 };
 pub use domain_id::DomainId;
 pub use finality::FinalityThreshold;
-pub use message::{BurnMessageV2, MessageHeader};
+pub use message::{
+    BurnMessageV2, MessageHeader, ParseMessageError, ParsedV2Message, ParsedV2MessageSummary,
+};

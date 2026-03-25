@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use alloy_primitives::{hex::FromHex, Bytes};
-use serde::{Deserialize, Deserializer};
+use serde::{Deserialize, Deserializer, Serialize};
 
 /// The bytes of the attestation.
 pub type AttestationBytes = Vec<u8>;
@@ -31,7 +31,7 @@ pub type AttestationBytes = Vec<u8>;
 ///   ]
 /// }
 /// ```
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct V2AttestationResponse {
     /// Array of messages from the transaction
     pub messages: Vec<V2Message>,
@@ -41,7 +41,7 @@ pub struct V2AttestationResponse {
 ///
 /// Each message contains the attestation status, the original message bytes,
 /// and the signed attestation (when complete).
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct V2Message {
     /// Status of the attestation
@@ -69,7 +69,7 @@ pub struct V2Message {
 /// **API Quirk**: Circle's Iris API sometimes returns the string `"PENDING"` for the
 /// attestation field instead of `null` when the attestation is not yet ready. This
 /// deserializer handles that case gracefully by treating "PENDING" as `None`.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AttestationResponse {
     pub status: AttestationStatus,
@@ -104,7 +104,7 @@ where
 }
 
 /// Represents the status of the attestation.
-#[derive(Debug, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum AttestationStatus {
     Complete,

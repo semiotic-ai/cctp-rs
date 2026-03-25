@@ -94,6 +94,7 @@
 //! - **Multi-chain support** for mainnet and testnet networks
 //! - **Comprehensive error handling** with detailed error types
 //! - **Builder pattern** for intuitive API usage
+//! - **Agent-friendly protocol inspection** with serializable v2 message parsing
 //! - **Extensive test coverage** ensuring reliability
 //!
 //! ## Public API
@@ -102,6 +103,8 @@
 //! - [`Cctp`] and [`CctpV2Bridge`] - Core CCTP bridge implementations for v1 and v2
 //! - [`CctpV1`] and [`CctpV2`] - Traits for chain-specific configurations
 //! - [`PollingConfig`] - Configuration for attestation polling behavior
+//! - [`ParsedV2Message`] and [`ParsedV2MessageSummary`] - Parse canonical v2 messages into serializable structs
+//! - [`ParseMessageError`] - Error type for canonical v2 message parsing
 //! - [`CctpError`] and [`Result`] - Error types for error handling
 //! - Contract wrappers for direct contract interaction:
 //!   - v1: [`TokenMessengerContract`], [`MessageTransmitterContract`]
@@ -133,7 +136,8 @@ pub use contracts::{
 pub use error::{CctpError, Result};
 pub use protocol::{
     AttestationBytes, AttestationResponse, AttestationStatus, BurnMessageV2, DomainId,
-    FinalityThreshold, MessageHeader, V2AttestationResponse, V2Message,
+    FinalityThreshold, MessageHeader, ParseMessageError, ParsedV2Message, ParsedV2MessageSummary,
+    V2AttestationResponse, V2Message,
 };
 pub use provider::{
     calculate_gas_price_with_buffer, estimate_gas_with_buffer, ProviderConfig,

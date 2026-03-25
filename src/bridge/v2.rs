@@ -13,6 +13,7 @@ use alloy_sol_types::SolEvent;
 use async_trait::async_trait;
 use bon::Builder;
 use reqwest::{Client, Response};
+use serde::{Deserialize, Serialize};
 use std::time::Duration;
 use tokio::time::sleep;
 use tracing::{debug, error, info};
@@ -23,7 +24,8 @@ use url::Url;
 /// CCTP v2 is permissionless - anyone can relay a message once Circle's attestation
 /// is available. Third-party relayers actively monitor for burns and may complete
 /// transfers before your application does. This enum represents both outcomes.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "status", content = "tx_hash", rename_all = "snake_case")]
 pub enum MintResult {
     /// We successfully minted (includes the transaction hash)
     Minted(TxHash),

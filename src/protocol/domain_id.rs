@@ -9,6 +9,7 @@
 //!
 //! Reference: <https://developers.circle.com/stablecoins/evm-smart-contracts>
 
+use serde::{Deserialize, Serialize};
 use std::fmt;
 
 /// CCTP domain identifier for blockchain networks
@@ -21,6 +22,13 @@ use std::fmt;
 /// - Domains 0-10: Supported in CCTP v1 and v2
 /// - Domains 11+: Only supported in CCTP v2
 ///
+/// # Serialization Compatibility
+///
+/// This enum serializes as `snake_case` strings such as `"ethereum"` and `"base"`.
+/// Because the enum is `#[non_exhaustive]`, future releases may add new variants.
+/// Older versions of the crate will reject JSON containing a domain string they do
+/// not yet know about.
+///
 /// # Example
 ///
 /// ```rust
@@ -30,7 +38,8 @@ use std::fmt;
 /// let domain_value: u32 = ethereum_domain.into();
 /// assert_eq!(domain_value, 0);
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 #[repr(u32)]
 #[non_exhaustive]
 pub enum DomainId {
@@ -171,6 +180,15 @@ impl DomainId {
             Self::ArcTestnet => "Arc Testnet",
         }
     }
+
+    /// Returns true if this domain currently uses the SDK's EVM address conventions.
+    ///
+    /// This is primarily useful when interpreting `bytes32` address fields from
+    /// canonical CCTP v2 messages. Non-EVM domains may use a different encoding.
+    #[inline]
+    pub const fn is_evm(self) -> bool {
+        !matches!(self, Self::Solana | Self::StarknetTestnet)
+    }
 }
 
 impl From<DomainId> for u32 {
@@ -307,6 +325,14 @@ mod tests {
         assert_eq!(DomainId::Ethereum.name(), "Ethereum");
         assert_eq!(DomainId::Arbitrum.name(), "Arbitrum");
         assert_eq!(DomainId::Avalanche.name(), "Avalanche");
+    }
+
+    #[test]
+    fn test_is_evm() {
+        assert!(DomainId::Ethereum.is_evm());
+        assert!(DomainId::Base.is_evm());
+        assert!(!DomainId::Solana.is_evm());
+        assert!(!DomainId::StarknetTestnet.is_evm());
     }
 
     #[test]

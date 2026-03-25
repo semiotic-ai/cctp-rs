@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+use serde::{Deserialize, Serialize};
+
 /// Circle Iris API environment URLs
 ///
 /// See <https://developers.circle.com/stablecoins/cctp-apis>
@@ -40,7 +42,7 @@ pub const MESSAGES_PATH_V2: &str = "/v2/messages/";
 /// // Use preset for fast transfers (30 attempts, 5 second intervals)
 /// let config = PollingConfig::fast_transfer();
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PollingConfig {
     /// Maximum number of polling attempts before giving up.
     pub max_attempts: u32,

@@ -42,7 +42,7 @@ url = "2.5"
 
 [dev-dependencies]
 alloy-signer-local = "1.7"
-insta = "1.46"
+insta = "1.47"
 rstest = "0.26"
 tokio = { version = "1.50", features = [
     "test-util",

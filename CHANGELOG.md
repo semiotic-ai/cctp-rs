@@ -5,6 +5,58 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.0] - 2026-04-17
+
+### Changed
+
+- **Breaking**: Upgraded the alloy workspace crates (`alloy-contract`,
+  `alloy-json-rpc`, `alloy-network`, `alloy-provider`, `alloy-rpc-types`,
+  `alloy-transport`, and the dev-only `alloy-signer-local`) from 1.7 to 2.0.
+  The cctp-rs source does not use any of the APIs broken by alloy 2.0
+  (`GasFiller` unit struct, split `TransactionBuilder` trait, blob-tx
+  builder reshuffle, strict `AnyNetwork` signing, exhaustive `ChainConfig`
+  matches), so migration is transparent for callers who only depend on
+  cctp-rs. Callers who also depend on alloy directly must upgrade their
+  alloy dependency to 2.0 in the same step.
+- Scoped `dotenvy` to dev-dependencies so it is no longer resolved
+  transitively by downstream consumers.
+
+### Removed
+
+- Unused `alloy-dyn-abi` root dependency was dropped — no public API
+  impact, but shrinks the dependency surface resolved by downstream.
+
+### Fixed
+
+- Pulled in `rustls-webpki` 0.103.12 via a lockfile refresh to resolve
+  RUSTSEC-2026-0098 (name constraints for URI names incorrectly accepted)
+  and RUSTSEC-2026-0099 (name constraints accepted for certificates
+  asserting a wildcard name).
+
+### Security
+
+- Kept the advisory baseline clean: only the pre-existing transitive
+  `derivative` (RUSTSEC-2024-0388) and `paste` (RUSTSEC-2024-0436)
+  unmaintained-crate warnings remain, both tracked consistently in
+  `deny.toml` and `.cargo/audit.toml`.
+
+### Internal
+
+- Extracted cargo-deny policy from the security workflow heredoc into a
+  repo-root `deny.toml`, so contributors can reproduce CI's license and
+  advisory checks locally.
+- Modernized GitHub Actions workflows to use `Swatinem/rust-cache` for
+  Rust-aware caching and `taiki-e/install-action` to install
+  `cargo-audit`, `cargo-deny`, and `cargo-semver-checks` from prebuilt
+  binaries instead of compiling from source on every run.
+- Removed the dependabot ignore rule for alloy semver-major updates so
+  future breaking alloy releases surface as reviewable PRs.
+- Applied pedantic clippy cleanups (named format-string interpolation,
+  `u64::from` in place of `as u64` for widening conversions, type and
+  event names in rustdoc backticks).
+
+---
+
 ## [2.2.0] - 2026-03-25
 
 ### Added

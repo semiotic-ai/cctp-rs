@@ -36,6 +36,6 @@ SPDX-License-Identifier = "Apache-2.0"
 
 # Configuration files
 [[annotations]]
-path = [".gitignore", ".env.example", ".github/**"]
+path = [".gitignore", ".env.example", ".github/**", ".cargo/**"]
 SPDX-FileCopyrightText = "2025 Semiotic AI, Inc."
 SPDX-License-Identifier = "Apache-2.0"

@@ -16,10 +16,6 @@ updates:
     commit-message:
       prefix: "deps"
       include: "scope"
-    ignore:
-      # Ignore major version updates for critical dependencies
-      - dependency-name: "alloy*"
-        update-types: ["version-update:semver-major"]
 
   # Enable version updates for GitHub Actions
   - package-ecosystem: "github-actions"

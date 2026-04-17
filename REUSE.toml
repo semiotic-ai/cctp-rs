@@ -12,7 +12,7 @@ SPDX-License-Identifier = "Apache-2.0"
 
 # Package management files
 [[annotations]]
-path = ["Cargo.toml", "Cargo.lock"]
+path = ["Cargo.toml", "Cargo.lock", "deny.toml"]
 SPDX-FileCopyrightText = "2025 Semiotic AI, Inc."
 SPDX-License-Identifier = "Apache-2.0"
 

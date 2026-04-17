@@ -25,7 +25,7 @@ use crate::{CctpError, DomainId, Result};
 ///
 /// - **Fast Transfer**: Chains that support fast transfer (finality threshold 1000)
 /// - **Dynamic Fees**: Some chains charge fees for fast transfer (0-14 bps)
-/// - **v2 Contracts**: Updated contract addresses for TokenMessengerV2 and MessageTransmitterV2
+/// - **v2 Contracts**: Updated contract addresses for `TokenMessengerV2` and `MessageTransmitterV2`
 /// - **Expanded Chains**: Support for 26+ networks vs v1's 7
 ///
 /// # Example
@@ -59,13 +59,13 @@ pub trait CctpV2 {
     /// - 1-14 bps: Small fee for fast settlement
     fn fast_transfer_fee_bps(&self) -> Result<Option<u32>>;
 
-    /// Returns the TokenMessengerV2 contract address for this chain
+    /// Returns the `TokenMessengerV2` contract address for this chain
     ///
     /// Returns an error if the chain doesn't support CCTP v2 or if
     /// contracts haven't been deployed yet.
     fn token_messenger_v2_address(&self) -> Result<Address>;
 
-    /// Returns the MessageTransmitterV2 contract address for this chain
+    /// Returns the `MessageTransmitterV2` contract address for this chain
     ///
     /// Returns an error if the chain doesn't support CCTP v2 or if
     /// contracts haven't been deployed yet.

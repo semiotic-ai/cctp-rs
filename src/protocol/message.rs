@@ -430,7 +430,7 @@ impl BurnMessageV2 {
         !self.hook_data.is_empty()
     }
 
-    /// Returns true if this message is configured for fast transfer (max_fee > 0)
+    /// Returns true if this message is configured for fast transfer (`max_fee` > 0)
     pub fn is_fast_transfer(&self) -> bool {
         self.max_fee > U256::ZERO
     }

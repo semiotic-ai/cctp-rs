@@ -83,7 +83,7 @@
 //! # }
 //! ```
 //!
-//! ## TraceQL Queries for Grafana
+//! ## `TraceQL` Queries for Grafana
 //!
 //! ```traceql
 //! # Find all bridge operations

@@ -124,7 +124,7 @@ impl<P: Provider<Ethereum> + Clone> Cctp<P> {
         let tx_receipt = match self.source_provider.get_transaction_receipt(tx_hash).await {
             Ok(receipt) => receipt,
             Err(e) => {
-                let error_msg = format!("Failed to get transaction receipt: {}", e);
+                let error_msg = format!("Failed to get transaction receipt: {e}");
                 spans::record_error_with_context(
                     "ReceiptRetrievalFailed",
                     &error_msg,
@@ -202,12 +202,12 @@ impl<P: Provider<Ethereum> + Clone> Cctp<P> {
     ///
     /// # Arguments
     ///
-    /// * `message_hash` - The keccak256 hash of the MessageSent event bytes
+    /// * `message_hash` - The keccak256 hash of the `MessageSent` event bytes
     /// * `polling_config` - Configuration for polling behavior (attempts, intervals)
     ///
     /// # Returns
     ///
-    /// The attestation bytes to submit to the destination chain's MessageTransmitter contract.
+    /// The attestation bytes to submit to the destination chain's `MessageTransmitter` contract.
     ///
     /// # Errors
     ///
@@ -272,8 +272,8 @@ impl<P: Provider<Ethereum> + Clone> Cctp<P> {
                 Err(e) => {
                     spans::record_error_with_context(
                         "HttpRequestFailed",
-                        &format!("Failed to fetch attestation: {}", e),
-                        Some(&format!("Attempt {}/{}", attempt, max_attempts)),
+                        &format!("Failed to fetch attestation: {e}"),
+                        Some(&format!("Attempt {attempt}/{max_attempts}")),
                     );
                     error!(
                         error = %e,
@@ -369,17 +369,14 @@ impl<P: Provider<Ethereum> + Clone> Cctp<P> {
 
         spans::record_error_with_context(
             "AttestationTimeout",
-            &format!(
-                "Attestation polling timed out after {} attempts",
-                max_attempts
-            ),
+            &format!("Attestation polling timed out after {max_attempts} attempts"),
             Some(&format!(
                 "Total duration: {} seconds",
-                max_attempts as u64 * poll_interval
+                u64::from(max_attempts) * poll_interval
             )),
         );
         error!(
-            total_duration_secs = max_attempts as u64 * poll_interval,
+            total_duration_secs = u64::from(max_attempts) * poll_interval,
             event = "attestation_timeout"
         );
         Err(CctpError::AttestationTimeout)
@@ -393,7 +390,7 @@ impl<P: Provider<Ethereum> + Clone> Cctp<P> {
     ///
     /// # Arguments
     ///
-    /// * `message_hash` - The keccak256 hash of the MessageSent event bytes
+    /// * `message_hash` - The keccak256 hash of the `MessageSent` event bytes
     ///
     /// # Returns
     ///

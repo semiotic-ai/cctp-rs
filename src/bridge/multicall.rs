@@ -54,7 +54,7 @@ use tracing::{debug, info};
 /// * `provider` - The Ethereum provider
 /// * `token` - The ERC20 token contract address (e.g., USDC)
 /// * `owner` - The address that owns the tokens
-/// * `spender` - The address to check allowance for (e.g., TokenMessenger)
+/// * `spender` - The address to check allowance for (e.g., `TokenMessenger`)
 ///
 /// # Returns
 ///

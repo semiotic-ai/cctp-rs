@@ -47,7 +47,7 @@ pub struct V2Message {
     /// Status of the attestation
     pub status: AttestationStatus,
 
-    /// The original message bytes from the MessageSent event
+    /// The original message bytes from the `MessageSent` event
     #[serde(default, deserialize_with = "deserialize_optional_bytes_or_pending")]
     pub message: Option<Bytes>,
 

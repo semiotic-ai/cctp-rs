@@ -208,7 +208,7 @@ impl<P: Provider<Ethereum> + Clone> CctpV2<P> {
         let tx_receipt = match self.source_provider.get_transaction_receipt(tx_hash).await {
             Ok(receipt) => receipt,
             Err(e) => {
-                let error_msg = format!("Failed to get transaction receipt: {}", e);
+                let error_msg = format!("Failed to get transaction receipt: {e}");
                 spans::record_error_with_context(
                     "ReceiptRetrievalFailed",
                     &error_msg,
@@ -506,11 +506,11 @@ impl<P: Provider<Ethereum> + Clone> CctpV2<P> {
             &format!("Attestation polling timed out after {max_attempts} attempts"),
             Some(&format!(
                 "Total duration: {} seconds",
-                max_attempts as u64 * poll_interval
+                u64::from(max_attempts) * poll_interval
             )),
         );
         error!(
-            total_duration_secs = max_attempts as u64 * poll_interval,
+            total_duration_secs = u64::from(max_attempts) * poll_interval,
             event = "attestation_timeout"
         );
         Err(CctpError::AttestationTimeout)
@@ -519,11 +519,11 @@ impl<P: Provider<Ethereum> + Clone> CctpV2<P> {
     /// Initiate a USDC burn on the source chain
     ///
     /// This creates and sends the depositForBurn transaction which locks USDC on the source
-    /// chain and emits a MessageSent event.
+    /// chain and emits a `MessageSent` event.
     ///
     /// # Arguments
     ///
-    /// * `amount` - Amount of USDC to transfer (in atomic units, e.g., 1 USDC = 1_000_000)
+    /// * `amount` - Amount of USDC to transfer (in atomic units, e.g., 1 USDC = `1_000_000`)
     /// * `from` - Address that will send the transaction (must have USDC balance and gas)
     /// * `token_address` - USDC token contract address on source chain
     ///
@@ -621,7 +621,7 @@ impl<P: Provider<Ethereum> + Clone> CctpV2<P> {
     ///
     /// # Arguments
     ///
-    /// * `message_bytes` - The message bytes from the MessageSent event
+    /// * `message_bytes` - The message bytes from the `MessageSent` event
     /// * `attestation` - Circle's attestation signature for the message
     /// * `from` - Address that will submit the transaction (needs gas on destination chain)
     ///
@@ -893,7 +893,7 @@ impl<P: Provider<Ethereum> + Clone> CctpV2<P> {
         }
     }
 
-    /// Get the current ERC20 allowance for the TokenMessenger contract
+    /// Get the current ERC20 allowance for the `TokenMessenger` contract
     ///
     /// Use this to check if approval is needed before calling `burn`.
     ///
@@ -934,9 +934,9 @@ impl<P: Provider<Ethereum> + Clone> CctpV2<P> {
             .map_err(|e| CctpError::ContractCall(format!("Failed to get allowance: {e}")))
     }
 
-    /// Approve the TokenMessenger contract to spend tokens
+    /// Approve the `TokenMessenger` contract to spend tokens
     ///
-    /// This must be called before `burn` if the TokenMessenger doesn't have
+    /// This must be called before `burn` if the `TokenMessenger` doesn't have
     /// sufficient allowance to transfer the desired amount.
     ///
     /// # Arguments
@@ -1078,7 +1078,7 @@ impl<P: Provider<Ethereum> + Clone> CctpV2<P> {
     ///
     /// This is a convenience method that orchestrates the complete transfer flow:
     /// 1. Burns USDC on source chain
-    /// 2. Extracts MessageSent event from burn transaction
+    /// 2. Extracts `MessageSent` event from burn transaction
     /// 3. Polls Circle's Iris API for attestation
     /// 4. Mints USDC on destination chain
     ///
@@ -1090,7 +1090,7 @@ impl<P: Provider<Ethereum> + Clone> CctpV2<P> {
     ///
     /// # Returns
     ///
-    /// Tuple of (burn_tx_hash, mint_tx_hash)
+    /// Tuple of (`burn_tx_hash`, `mint_tx_hash`)
     ///
     /// # Example
     ///

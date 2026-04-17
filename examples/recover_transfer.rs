@@ -7,8 +7,8 @@
 //! the attestation and mint phases using data directly from Circle's API.
 //!
 //! Environment variables (set these in .env file):
-//! - TESTNET_PRIVATE_KEY: Your wallet private key (must start with 0x)
-//! - TESTNET_API_KEY: Alchemy API key (used for all testnet RPCs)
+//! - `TESTNET_PRIVATE_KEY`: Your wallet private key (must start with 0x)
+//! - `TESTNET_API_KEY`: Alchemy API key (used for all testnet RPCs)
 //!
 //! Run with: `cargo run --example recover_transfer`
 
@@ -56,18 +56,18 @@ async fn main() -> Result<(), CctpError> {
         .expect("Invalid TESTNET_PRIVATE_KEY format");
     let wallet_address = signer.address();
 
-    println!("📍 Wallet: {}", wallet_address);
+    println!("📍 Wallet: {wallet_address}");
     if wallet_address != WALLET_ADDRESS {
         println!("⚠️  Warning: Wallet address mismatch!");
-        println!("   Expected: {}", WALLET_ADDRESS);
-        println!("   Got: {}", wallet_address);
+        println!("   Expected: {WALLET_ADDRESS}");
+        println!("   Got: {wallet_address}");
         println!("   Continuing anyway (mint will go to the original recipient)...\n");
     }
     println!();
 
     // Construct RPC URLs
     let base_sepolia_rpc = std::env::var("BASE_SEPOLIA_RPC_URL")
-        .unwrap_or_else(|_| format!("https://base-sepolia.g.alchemy.com/v2/{}", api_key));
+        .unwrap_or_else(|_| format!("https://base-sepolia.g.alchemy.com/v2/{api_key}"));
 
     // Create wallet from signer
     let wallet = EthereumWallet::from(signer);
@@ -92,14 +92,11 @@ async fn main() -> Result<(), CctpError> {
 
     // Compute message hash
     let message_hash = alloy_primitives::keccak256(&message_bytes);
-    println!("   Message Hash: {}\n", message_hash);
+    println!("   Message Hash: {message_hash}\n");
 
     // Get the MessageTransmitter contract address for Base Sepolia
     let message_transmitter_address = cctp_rs::CCTP_V2_MESSAGE_TRANSMITTER_TESTNET;
-    println!(
-        "3️⃣  MessageTransmitter Contract: {}\n",
-        message_transmitter_address
-    );
+    println!("3️⃣  MessageTransmitter Contract: {message_transmitter_address}\n");
 
     // Create the contract instance
     let message_transmitter =
@@ -121,11 +118,8 @@ async fn main() -> Result<(), CctpError> {
         .map_err(|e| CctpError::Provider(format!("Failed to send mint transaction: {e}")))?;
 
     let mint_tx = *pending_tx.tx_hash();
-    println!("   ✅ Mint TX: {}", mint_tx);
-    println!(
-        "   View on BaseScan: https://base-sepolia.blockscout.com/tx/{}",
-        mint_tx
-    );
+    println!("   ✅ Mint TX: {mint_tx}");
+    println!("   View on BaseScan: https://base-sepolia.blockscout.com/tx/{mint_tx}");
 
     println!("\n🎉 Transfer Recovery Complete!");
     println!("   Your 1 USDC has been successfully bridged from Arbitrum Sepolia to Base Sepolia.");

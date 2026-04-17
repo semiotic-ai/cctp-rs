@@ -8,14 +8,14 @@
 //!
 //! Prerequisites:
 //! - Arbitrum Sepolia ETH for gas
-//! - Arbitrum Sepolia USDC from Circle faucet (https://faucet.circle.com/)
+//! - Arbitrum Sepolia USDC from Circle faucet (<https://faucet.circle.com>/)
 //! - Base Sepolia ETH for destination gas
 //!
 //! Environment variables (set these in .env file):
-//! - TESTNET_PRIVATE_KEY: Your wallet private key (must start with 0x)
-//! - TESTNET_API_KEY: Alchemy API key (used for all testnet RPCs)
-//! - BASE_SEPOLIA_RPC_URL: (optional) Override Base Sepolia RPC
-//! - ARBITRUM_SEPOLIA_RPC_URL: (optional) Override Arbitrum Sepolia RPC
+//! - `TESTNET_PRIVATE_KEY`: Your wallet private key (must start with 0x)
+//! - `TESTNET_API_KEY`: Alchemy API key (used for all testnet RPCs)
+//! - `BASE_SEPOLIA_RPC_URL`: (optional) Override Base Sepolia RPC
+//! - `ARBITRUM_SEPOLIA_RPC_URL`: (optional) Override Arbitrum Sepolia RPC
 //!
 //! Run with: `cargo run --example v2_fast_transfer`
 
@@ -39,13 +39,13 @@ sol! {
 /// Format ETH balance (18 decimals) for display
 fn format_eth_balance(balance: U256) -> String {
     let eth = balance.to::<u128>() as f64 / 1e18;
-    format!("{:.6}", eth)
+    format!("{eth:.6}")
 }
 
 /// Format USDC balance (6 decimals) for display
 fn format_usdc_balance(balance: U256) -> String {
     let usdc = balance.to::<u128>() as f64 / 1e6;
-    format!("{:.6}", usdc)
+    format!("{usdc:.6}")
 }
 
 #[tokio::main]

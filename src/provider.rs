@@ -177,7 +177,7 @@ impl Default for ProviderConfig {
 }
 
 impl ProviderConfig {
-    /// Creates a new builder for ProviderConfig
+    /// Creates a new builder for `ProviderConfig`
     pub fn builder() -> ProviderConfigBuilder {
         ProviderConfigBuilder::default()
     }
@@ -246,7 +246,7 @@ impl ProviderConfigBuilder {
         self
     }
 
-    /// Builds the ProviderConfig
+    /// Builds the `ProviderConfig`
     pub fn build(self) -> ProviderConfig {
         ProviderConfig {
             retry_attempts: self.retry_attempts.unwrap_or(DEFAULT_RETRY_ATTEMPTS),
@@ -271,7 +271,7 @@ impl ProviderConfigBuilder {
 ///
 /// # Returns
 ///
-/// A tuple of (max_fee_per_gas, max_priority_fee_per_gas) with buffer applied
+/// A tuple of (`max_fee_per_gas`, `max_priority_fee_per_gas`) with buffer applied
 ///
 /// # Example
 ///

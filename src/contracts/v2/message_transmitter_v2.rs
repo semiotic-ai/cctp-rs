@@ -1,10 +1,10 @@
 // SPDX-FileCopyrightText: 2025 Semiotic AI, Inc.
 //
 // SPDX-License-Identifier: Apache-2.0
-//! MessageTransmitterV2 contract bindings and wrapper
+//! `MessageTransmitterV2` contract bindings and wrapper
 //!
 //! This module contains the Alloy-generated contract bindings for the CCTP v2
-//! MessageTransmitter contract, which handles cross-chain message verification
+//! `MessageTransmitter` contract, which handles cross-chain message verification
 //! and reception with finality-aware processing.
 
 use alloy_network::Ethereum;
@@ -26,7 +26,7 @@ pub struct MessageTransmitterV2Contract<P: Provider<Ethereum>> {
 }
 
 impl<P: Provider<Ethereum>> MessageTransmitterV2Contract<P> {
-    /// Create a new MessageTransmitterV2Contract
+    /// Create a new `MessageTransmitterV2Contract`
     pub fn new(address: Address, provider: P) -> Self {
         debug!(
             contract_address = %address,

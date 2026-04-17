@@ -1,10 +1,10 @@
 // SPDX-FileCopyrightText: 2025 Semiotic AI, Inc.
 //
 // SPDX-License-Identifier: Apache-2.0
-//! TokenMessengerV2 contract bindings and wrapper
+//! `TokenMessengerV2` contract bindings and wrapper
 //!
 //! This module contains the Alloy-generated contract bindings for the CCTP v2
-//! TokenMessenger contract, which manages USDC burn and mint operations with
+//! `TokenMessenger` contract, which manages USDC burn and mint operations with
 //! Fast Transfer and hooks support.
 
 #![allow(dead_code)] // Public API methods not used internally
@@ -29,7 +29,7 @@ pub struct TokenMessengerV2Contract<P: Provider<Ethereum>> {
 }
 
 impl<P: Provider<Ethereum>> TokenMessengerV2Contract<P> {
-    /// Create a new TokenMessengerV2Contract
+    /// Create a new `TokenMessengerV2Contract`
     #[allow(dead_code)]
     pub fn new(address: Address, provider: P) -> Self {
         debug!(
@@ -140,7 +140,7 @@ impl<P: Provider<Ethereum>> TokenMessengerV2Contract<P> {
     ///
     /// # Fast Transfer
     ///
-    /// When max_fee >= minimum fast transfer fee for the chain, the transfer
+    /// When `max_fee` >= minimum fast transfer fee for the chain, the transfer
     /// will be attested at the "confirmed" finality level (~30 seconds) instead
     /// of "finalized" level (~15 minutes). Uses finality threshold 1000.
     #[allow(dead_code)]

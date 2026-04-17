@@ -38,7 +38,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Find MessageSent log
     let message_sent_topic = alloy_primitives::keccak256(b"MessageSent(bytes)");
-    println!("2️⃣  MessageSent topic: {}\n", message_sent_topic);
+    println!("2️⃣  MessageSent topic: {message_sent_topic}\n");
 
     for (i, log) in receipt.inner.logs().iter().enumerate() {
         println!("   Log {}: topic0 = {:?}", i, log.topics().first());
@@ -62,7 +62,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             // Next 32 bytes: length of the bytes data
             let length_bytes = &raw_data[32..64];
             let length = u64::from_be_bytes(length_bytes[24..32].try_into()?);
-            println!("   Length field: {} bytes", length);
+            println!("   Length field: {length} bytes");
 
             // Remaining bytes: the actual message
             let message = &raw_data[64..64 + length as usize];
@@ -105,8 +105,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let api_hash = alloy_primitives::keccak256(&api_message_bytes);
 
             println!("\n5️⃣  Hash comparison:");
-            println!("   Extracted message hash: {}", extracted_hash);
-            println!("   API message hash:       {}", api_hash);
+            println!("   Extracted message hash: {extracted_hash}");
+            println!("   API message hash:       {api_hash}");
             println!("   Expected from logs:     0x6c3f18b0822232dfa4b41429a62bfa5241d28db1edce05ea265896cba4075ed9");
         }
     }

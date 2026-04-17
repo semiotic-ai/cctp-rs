@@ -7,14 +7,14 @@
 //!
 //! Prerequisites:
 //! - Sepolia ETH for gas
-//! - Sepolia USDC from Circle faucet (https://faucet.circle.com/)
+//! - Sepolia USDC from Circle faucet (<https://faucet.circle.com>/)
 //! - Base Sepolia ETH for destination gas
 //!
 //! Environment variables (set these in .env file):
-//! - TESTNET_PRIVATE_KEY: Your wallet private key (must start with 0x)
-//! - TESTNET_API_KEY: Alchemy API key (used for all testnet RPCs)
-//! - BASE_SEPOLIA_RPC_URL: (optional) Override Base Sepolia RPC
-//! - ARBITRUM_SEPOLIA_RPC_URL: (optional) Override Arbitrum Sepolia RPC
+//! - `TESTNET_PRIVATE_KEY`: Your wallet private key (must start with 0x)
+//! - `TESTNET_API_KEY`: Alchemy API key (used for all testnet RPCs)
+//! - `BASE_SEPOLIA_RPC_URL`: (optional) Override Base Sepolia RPC
+//! - `ARBITRUM_SEPOLIA_RPC_URL`: (optional) Override Arbitrum Sepolia RPC
 //!
 //! Run with: `cargo run --example testnet_validation`
 
@@ -41,13 +41,13 @@ sol! {
 /// Format ETH balance (18 decimals) for display
 fn format_eth_balance(balance: U256) -> String {
     let eth = balance.to::<u128>() as f64 / 1e18;
-    format!("{:.6}", eth)
+    format!("{eth:.6}")
 }
 
 /// Format USDC balance (6 decimals) for display
 fn format_usdc_balance(balance: U256) -> String {
     let usdc = balance.to::<u128>() as f64 / 1e6;
-    format!("{:.6}", usdc)
+    format!("{usdc:.6}")
 }
 
 #[tokio::main]
@@ -78,16 +78,16 @@ async fn main() -> Result<(), CctpError> {
 
     // Construct RPC URLs
     let base_sepolia_rpc = std::env::var("BASE_SEPOLIA_RPC_URL")
-        .unwrap_or_else(|_| format!("https://base-sepolia.g.alchemy.com/v2/{}", api_key));
+        .unwrap_or_else(|_| format!("https://base-sepolia.g.alchemy.com/v2/{api_key}"));
     let arbitrum_sepolia_rpc = std::env::var("ARBITRUM_SEPOLIA_RPC_URL")
-        .unwrap_or_else(|_| format!("https://arbitrum-sepolia.g.alchemy.com/v2/{}", api_key));
+        .unwrap_or_else(|_| format!("https://arbitrum-sepolia.g.alchemy.com/v2/{api_key}"));
 
     println!("📍 Configuration:");
-    println!("   Wallet: {}", wallet_address);
+    println!("   Wallet: {wallet_address}");
     println!("   Source: Sepolia");
     println!("   Destination: Base Sepolia");
-    println!("   Arbitrum Sepolia RPC: {}", arbitrum_sepolia_rpc);
-    println!("   Base Sepolia RPC: {}\n", base_sepolia_rpc);
+    println!("   Arbitrum Sepolia RPC: {arbitrum_sepolia_rpc}");
+    println!("   Base Sepolia RPC: {base_sepolia_rpc}\n");
 
     // Create wallet from signer
     let wallet = EthereumWallet::from(signer);
@@ -118,7 +118,7 @@ async fn main() -> Result<(), CctpError> {
         .get_balance(wallet_address)
         .await
         .map_err(|e| {
-            CctpError::Provider(format!("Failed to get Arbitrum Sepolia ETH balance: {}", e))
+            CctpError::Provider(format!("Failed to get Arbitrum Sepolia ETH balance: {e}"))
         })?;
 
     let usdc_arb_contract = IERC20::new(usdc_arbitrum_sepolia, &arbitrum_sepolia_provider);
@@ -127,10 +127,7 @@ async fn main() -> Result<(), CctpError> {
         .call()
         .await
         .map_err(|e| {
-            CctpError::ContractCall(format!(
-                "Failed to get Arbitrum Sepolia USDC balance: {}",
-                e
-            ))
+            CctpError::ContractCall(format!("Failed to get Arbitrum Sepolia USDC balance: {e}"))
         })?;
 
     println!(
@@ -149,9 +146,7 @@ async fn main() -> Result<(), CctpError> {
     let base_eth_balance = base_sepolia_provider
         .get_balance(wallet_address)
         .await
-        .map_err(|e| {
-            CctpError::Provider(format!("Failed to get Base Sepolia ETH balance: {}", e))
-        })?;
+        .map_err(|e| CctpError::Provider(format!("Failed to get Base Sepolia ETH balance: {e}")))?;
 
     let usdc_base_contract = IERC20::new(usdc_base_sepolia, &base_sepolia_provider);
     let base_usdc_balance = usdc_base_contract
@@ -159,7 +154,7 @@ async fn main() -> Result<(), CctpError> {
         .call()
         .await
         .map_err(|e| {
-            CctpError::ContractCall(format!("Failed to get Base Sepolia USDC balance: {}", e))
+            CctpError::ContractCall(format!("Failed to get Base Sepolia USDC balance: {e}"))
         })?;
 
     println!(
@@ -222,7 +217,7 @@ async fn main() -> Result<(), CctpError> {
     if !issues.is_empty() {
         println!("⚠️  Cannot proceed - insufficient balances:\n");
         for issue in &issues {
-            println!("   {}\n", issue);
+            println!("   {issue}\n");
         }
         println!("Please fund your wallet and try again.");
         return Ok(());
@@ -265,8 +260,8 @@ async fn main() -> Result<(), CctpError> {
     let source_domain = bridge.source_chain().cctp_v2_domain_id()?;
     let dest_domain = bridge.destination_domain_id()?;
 
-    println!("   Source Domain (Arbitrum Sepolia): {}", source_domain);
-    println!("   Destination Domain (Base): {}", dest_domain);
+    println!("   Source Domain (Arbitrum Sepolia): {source_domain}");
+    println!("   Destination Domain (Base): {dest_domain}");
 
     assert_eq!(
         source_domain.as_u32(),
@@ -281,8 +276,8 @@ async fn main() -> Result<(), CctpError> {
     let token_messenger = bridge.token_messenger_v2_contract()?;
     let message_transmitter = bridge.message_transmitter_v2_contract()?;
 
-    println!("   TokenMessenger: {}", token_messenger);
-    println!("   MessageTransmitter: {}", message_transmitter);
+    println!("   TokenMessenger: {token_messenger}");
+    println!("   MessageTransmitter: {message_transmitter}");
 
     let expected_tm = CCTP_V2_TOKEN_MESSENGER_TESTNET;
     let expected_mt = CCTP_V2_MESSAGE_TRANSMITTER_TESTNET;
@@ -312,10 +307,10 @@ async fn main() -> Result<(), CctpError> {
 
     println!("9️⃣  Transfer Details:");
     println!("   Token: USDC (Arbitrum Sepolia)");
-    println!("   Token Address: {}", usdc_arbitrum_sepolia);
+    println!("   Token Address: {usdc_arbitrum_sepolia}");
     println!("   Amount: 1.0 USDC");
-    println!("   From: {}", wallet_address);
-    println!("   To: {} (same address on Base Sepolia)\n", wallet_address);
+    println!("   From: {wallet_address}");
+    println!("   To: {wallet_address} (same address on Base Sepolia)\n");
 
     // Execute the transfer
     println!("\n🚀 Starting Transfer...\n");
@@ -333,7 +328,7 @@ async fn main() -> Result<(), CctpError> {
         "   Current allowance: {} USDC",
         format_usdc_balance(current_allowance)
     );
-    println!("   TokenMessenger: {}", token_messenger);
+    println!("   TokenMessenger: {token_messenger}");
 
     if current_allowance < amount {
         println!("   ⚠️  Insufficient allowance, sending approval transaction...");
@@ -341,10 +336,9 @@ async fn main() -> Result<(), CctpError> {
         let approval_tx = bridge
             .approve(usdc_arbitrum_sepolia, wallet_address, amount)
             .await?;
-        println!("   ✅ Approval TX: {}", approval_tx);
+        println!("   ✅ Approval TX: {approval_tx}");
         println!(
-            "   View on Arbitrum Sepolia Etherscan: https://sepolia.arbiscan.io/tx/{}",
-            approval_tx
+            "   View on Arbitrum Sepolia Etherscan: https://sepolia.arbiscan.io/tx/{approval_tx}"
         );
 
         // Wait for approval to be mined
@@ -360,11 +354,8 @@ async fn main() -> Result<(), CctpError> {
     let burn_tx = bridge
         .burn(amount, wallet_address, usdc_arbitrum_sepolia)
         .await?;
-    println!("   ✅ Burn TX: {}", burn_tx);
-    println!(
-        "   View on Arbitrum Sepolia Etherscan: https://sepolia.arbiscan.io/tx/{}",
-        burn_tx
-    );
+    println!("   ✅ Burn TX: {burn_tx}");
+    println!("   View on Arbitrum Sepolia Etherscan: https://sepolia.arbiscan.io/tx/{burn_tx}");
 
     println!("\n1️⃣2️⃣ Attestation Phase:");
     println!("   Polling Circle API for attestation and message...");
@@ -386,17 +377,14 @@ async fn main() -> Result<(), CctpError> {
     println!("   Minting 1 USDC on Base Sepolia...");
 
     let mint_tx = bridge.mint(message, attestation, wallet_address).await?;
-    println!("   ✅ Mint TX: {}", mint_tx);
-    println!(
-        "   View on BaseScan: https://base-sepolia.blockscout.com/tx/{}",
-        mint_tx
-    );
+    println!("   ✅ Mint TX: {mint_tx}");
+    println!("   View on BaseScan: https://base-sepolia.blockscout.com/tx/{mint_tx}");
 
     println!("\n🎉 Transfer Complete!");
     println!("   Your 1 USDC has been successfully bridged from Arbitrum Sepolia to Base Sepolia.");
     println!("\n   Summary:");
-    println!("   - Burn TX: {}", burn_tx);
-    println!("   - Mint TX: {}", mint_tx);
+    println!("   - Burn TX: {burn_tx}");
+    println!("   - Mint TX: {mint_tx}");
     println!("\n✅ v0.15.0 Testnet Validation: PASSED");
 
     Ok(())

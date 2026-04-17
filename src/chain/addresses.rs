@@ -3,8 +3,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //! Contract addresses for CCTP contracts across all supported chains
 //!
-//! This module centralizes all contract address constants for both MessageTransmitter
-//! and TokenMessenger contracts across mainnet and testnet chains.
+//! This module centralizes all contract address constants for both `MessageTransmitter`
+//! and `TokenMessenger` contracts across mainnet and testnet chains.
 
 use alloy_primitives::{address, Address};
 
@@ -102,7 +102,7 @@ pub const UNICHAIN_CCTP_V1_TOKEN_MESSENGER: Address =
 //
 // Reference: <https://developers.circle.com/cctp/evm-smart-contracts>
 
-/// CCTP V2 MessageTransmitter address (Mainnet)
+/// CCTP V2 `MessageTransmitter` address (Mainnet)
 ///
 /// Used across ALL v2 mainnet chains including:
 /// - Linea (Domain 11)
@@ -113,7 +113,7 @@ pub const UNICHAIN_CCTP_V1_TOKEN_MESSENGER: Address =
 pub const CCTP_V2_MESSAGE_TRANSMITTER_MAINNET: Address =
     address!("81D40F21F12A8F0E3252Bccb954D722d4c464B64");
 
-/// CCTP V2 TokenMessenger address (Mainnet)
+/// CCTP V2 `TokenMessenger` address (Mainnet)
 ///
 /// Used across ALL v2 mainnet chains including:
 /// - Linea (Domain 11)
@@ -124,7 +124,7 @@ pub const CCTP_V2_MESSAGE_TRANSMITTER_MAINNET: Address =
 pub const CCTP_V2_TOKEN_MESSENGER_MAINNET: Address =
     address!("28b5a0e9C621a5BadaA536219b3a228C8168cf5d");
 
-/// CCTP V2 MessageTransmitter address (Testnet)
+/// CCTP V2 `MessageTransmitter` address (Testnet)
 ///
 /// Used across ALL v2 testnet chains including:
 /// - Linea Sepolia (Domain 11)
@@ -135,7 +135,7 @@ pub const CCTP_V2_TOKEN_MESSENGER_MAINNET: Address =
 pub const CCTP_V2_MESSAGE_TRANSMITTER_TESTNET: Address =
     address!("E737e5cEBEEBa77EFE34D4aa090756590b1CE275");
 
-/// CCTP V2 TokenMessenger address (Testnet)
+/// CCTP V2 `TokenMessenger` address (Testnet)
 ///
 /// Used across ALL v2 testnet chains including:
 /// - Linea Sepolia (Domain 11)

@@ -38,7 +38,7 @@ pub enum FinalityThreshold {
     ///
     /// - Settlement time: Under 30 seconds
     /// - Fee: 0-14 basis points (chain-dependent)
-    /// - Use case: Time-sensitive operations, arbitrage, real-time DeFi
+    /// - Use case: Time-sensitive operations, arbitrage, real-time `DeFi`
     Fast = 1000,
 
     /// Standard Transfer - Attestation at finalized block level (threshold: 2000)
@@ -65,7 +65,7 @@ impl FinalityThreshold {
         self as u32
     }
 
-    /// Attempts to create a FinalityThreshold from a u32 value
+    /// Attempts to create a `FinalityThreshold` from a u32 value
     ///
     /// # Example
     ///
@@ -171,7 +171,7 @@ impl fmt::Display for FinalityThreshold {
     }
 }
 
-/// Error returned when attempting to convert an invalid u32 to a FinalityThreshold
+/// Error returned when attempting to convert an invalid u32 to a `FinalityThreshold`
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct InvalidFinalityThreshold(pub u32);
 

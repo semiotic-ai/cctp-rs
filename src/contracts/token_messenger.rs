@@ -1,10 +1,10 @@
 // SPDX-FileCopyrightText: 2025 Semiotic AI, Inc.
 //
 // SPDX-License-Identifier: Apache-2.0
-//! TokenMessenger contract bindings and wrapper
+//! `TokenMessenger` contract bindings and wrapper
 //!
 //! This module contains the Alloy-generated contract bindings for the CCTP
-//! TokenMessenger contract, which manages USDC burn and mint operations for
+//! `TokenMessenger` contract, which manages USDC burn and mint operations for
 //! cross-chain transfers.
 
 use std::marker::PhantomData;
@@ -26,7 +26,7 @@ pub struct TokenMessengerContract<P: Provider<Ethereum>> {
 }
 
 impl<P: Provider<Ethereum>> TokenMessengerContract<P> {
-    /// Create a new TokenMessengerContract.
+    /// Create a new `TokenMessengerContract`.
     pub fn new(address: Address, provider: P) -> Self {
         debug!(
             contract_address = %address,

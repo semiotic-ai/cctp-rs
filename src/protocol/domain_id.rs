@@ -55,7 +55,7 @@ pub enum DomainId {
     Solana = 5,
     /// Base and Base Sepolia (Domain ID: 6)
     Base = 6,
-    /// Polygon PoS (Domain ID: 7)
+    /// Polygon `PoS` (Domain ID: 7)
     Polygon = 7,
     /// Unichain (Domain ID: 10)
     Unichain = 10,
@@ -75,7 +75,7 @@ pub enum DomainId {
     BnbSmartChain = 17,
     /// XDC Network (Domain ID: 18) - v2 only
     Xdc = 18,
-    /// HyperEVM (Domain ID: 19) - v2 only
+    /// `HyperEVM` (Domain ID: 19) - v2 only
     HyperEvm = 19,
     /// Ink (Domain ID: 21) - v2 only
     Ink = 21,
@@ -103,7 +103,7 @@ impl DomainId {
         self as u32
     }
 
-    /// Attempts to create a DomainId from a u32 value
+    /// Attempts to create a `DomainId` from a u32 value
     ///
     /// # Example
     ///
@@ -213,7 +213,7 @@ impl fmt::Display for DomainId {
     }
 }
 
-/// Error returned when attempting to convert an invalid u32 to a DomainId
+/// Error returned when attempting to convert an invalid u32 to a `DomainId`
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct InvalidDomainId(pub u32);
 

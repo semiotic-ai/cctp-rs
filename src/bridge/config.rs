@@ -132,7 +132,7 @@ impl PollingConfig {
     /// assert_eq!(config.total_timeout_secs(), 30 * 60); // 30 minutes
     /// ```
     pub fn total_timeout_secs(&self) -> u64 {
-        self.max_attempts as u64 * self.poll_interval_secs
+        u64::from(self.max_attempts) * self.poll_interval_secs
     }
 }
 

@@ -1154,7 +1154,6 @@ version = "2.2.0"
 dependencies = [
  "alloy-chains",
  "alloy-contract",
- "alloy-dyn-abi",
  "alloy-json-rpc",
  "alloy-network",
  "alloy-primitives",

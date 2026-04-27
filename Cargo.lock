@@ -222,9 +222,9 @@ dependencies = [
 
 [[package]]
 name = "alloy-json-rpc"
-version = "2.0.0"
+version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "31b6af6f374c1eeef8ab8dc26232cd440db167322a4207a3debd3d1ee565ca47"
+checksum = "662b525af73e86b2167dae923261c8edf440ba7e1426b30a8b993177bc214c02"
 dependencies = [
  "alloy-primitives",
  "alloy-sol-types",

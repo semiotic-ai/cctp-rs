@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.1.1] - 2026-05-05
+
+### Changed
+
+- `batch_token_checks` no longer emits its own `debug!`/`info!` records.
+  The inner `Erc20Contract::allowance` and `balance_of` calls already log
+  every read, so each batch was producing three duplicate `info!` entries
+  per call. Log volume for callers using the batch helper is reduced
+  accordingly; structured fields and event names from the inner ERC20
+  layer are unchanged.
+
 ## [3.1.0] - 2026-05-05
 
 ### Fixed

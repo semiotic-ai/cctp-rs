@@ -11,6 +11,7 @@
 
 use serde::{Deserialize, Serialize};
 use std::fmt;
+use thiserror::Error;
 
 /// CCTP domain identifier for blockchain networks
 ///
@@ -99,6 +100,7 @@ impl DomainId {
     /// assert_eq!(DomainId::Arbitrum.as_u32(), 3);
     /// ```
     #[inline]
+    #[must_use]
     pub const fn as_u32(self) -> u32 {
         self as u32
     }
@@ -116,6 +118,7 @@ impl DomainId {
     /// assert_eq!(DomainId::from_u32(999), None);
     /// ```
     #[inline]
+    #[must_use]
     pub const fn from_u32(value: u32) -> Option<Self> {
         match value {
             0 => Some(Self::Ethereum),
@@ -155,6 +158,7 @@ impl DomainId {
     /// assert_eq!(DomainId::Linea.name(), "Linea");
     /// ```
     #[inline]
+    #[must_use]
     pub const fn name(self) -> &'static str {
         match self {
             Self::Ethereum => "Ethereum",
@@ -186,6 +190,7 @@ impl DomainId {
     /// This is primarily useful when interpreting `bytes32` address fields from
     /// canonical CCTP v2 messages. Non-EVM domains may use a different encoding.
     #[inline]
+    #[must_use]
     pub const fn is_evm(self) -> bool {
         !matches!(self, Self::Solana | Self::StarknetTestnet)
     }
@@ -214,16 +219,9 @@ impl fmt::Display for DomainId {
 }
 
 /// Error returned when attempting to convert an invalid u32 to a `DomainId`
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Error)]
+#[error("invalid CCTP domain ID: {0}")]
 pub struct InvalidDomainId(pub u32);
-
-impl fmt::Display for InvalidDomainId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "invalid CCTP domain ID: {}", self.0)
-    }
-}
-
-impl std::error::Error for InvalidDomainId {}
 
 #[cfg(test)]
 mod tests {

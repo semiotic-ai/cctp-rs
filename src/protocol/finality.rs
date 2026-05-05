@@ -11,6 +11,7 @@
 
 use serde::{Deserialize, Serialize};
 use std::fmt;
+use thiserror::Error;
 
 /// Finality threshold for CCTP v2 messages
 ///
@@ -61,6 +62,7 @@ impl FinalityThreshold {
     /// assert_eq!(FinalityThreshold::Standard.as_u32(), 2000);
     /// ```
     #[inline]
+    #[must_use]
     pub const fn as_u32(self) -> u32 {
         self as u32
     }
@@ -83,6 +85,7 @@ impl FinalityThreshold {
     /// assert_eq!(FinalityThreshold::from_u32(1500), None);
     /// ```
     #[inline]
+    #[must_use]
     pub const fn from_u32(value: u32) -> Option<Self> {
         match value {
             1000 => Some(Self::Fast),
@@ -102,6 +105,7 @@ impl FinalityThreshold {
     /// assert_eq!(FinalityThreshold::Standard.name(), "Standard Transfer");
     /// ```
     #[inline]
+    #[must_use]
     pub const fn name(self) -> &'static str {
         match self {
             Self::Fast => "Fast Transfer",
@@ -110,31 +114,15 @@ impl FinalityThreshold {
     }
 
     /// Returns true if this is a Fast Transfer threshold
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use cctp_rs::FinalityThreshold;
-    ///
-    /// assert!(FinalityThreshold::Fast.is_fast());
-    /// assert!(!FinalityThreshold::Standard.is_fast());
-    /// ```
     #[inline]
+    #[must_use]
     pub const fn is_fast(self) -> bool {
         matches!(self, Self::Fast)
     }
 
     /// Returns true if this is a Standard Transfer threshold
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use cctp_rs::FinalityThreshold;
-    ///
-    /// assert!(FinalityThreshold::Standard.is_standard());
-    /// assert!(!FinalityThreshold::Fast.is_standard());
-    /// ```
     #[inline]
+    #[must_use]
     pub const fn is_standard(self) -> bool {
         matches!(self, Self::Standard)
     }
@@ -172,20 +160,9 @@ impl fmt::Display for FinalityThreshold {
 }
 
 /// Error returned when attempting to convert an invalid u32 to a `FinalityThreshold`
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Error)]
+#[error("invalid finality threshold: {0} (expected 1000 or 2000)")]
 pub struct InvalidFinalityThreshold(pub u32);
-
-impl fmt::Display for InvalidFinalityThreshold {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "invalid finality threshold: {} (expected 1000 or 2000)",
-            self.0
-        )
-    }
-}
-
-impl std::error::Error for InvalidFinalityThreshold {}
 
 #[cfg(test)]
 mod tests {

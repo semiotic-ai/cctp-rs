@@ -120,6 +120,7 @@
 //! - [`PollingConfig`] - Configuration for attestation polling behavior
 //! - [`ParsedV2Message`] and [`ParsedV2MessageSummary`] - Parse canonical v2 messages into serializable structs
 //! - [`ParseMessageError`] - Error type for canonical v2 message parsing
+//! - [`InvalidDomainId`] and [`InvalidFinalityThreshold`] - Errors returned by `TryFrom<u32>` for [`DomainId`] / [`FinalityThreshold`]
 //! - [`CctpError`] and [`Result`] - Error types for error handling
 //! - Contract wrappers for direct contract interaction:
 //!   - v1: [`TokenMessengerContract`], [`MessageTransmitterContract`]
@@ -151,8 +152,8 @@ pub use contracts::{
 pub use error::{CctpError, Result};
 pub use protocol::{
     AttestationBytes, AttestationResponse, AttestationStatus, BurnMessageV2, DomainId,
-    FinalityThreshold, MessageHeader, ParseMessageError, ParsedV2Message, ParsedV2MessageSummary,
-    V2AttestationResponse, V2Message,
+    FinalityThreshold, InvalidDomainId, InvalidFinalityThreshold, MessageHeader, ParseMessageError,
+    ParsedV2Message, ParsedV2MessageSummary, V2AttestationResponse, V2Message,
 };
 pub use provider::{
     calculate_gas_price_with_buffer, estimate_gas_with_buffer, ProviderConfig,

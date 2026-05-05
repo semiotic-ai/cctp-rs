@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.1.2] - 2026-05-05
+
+### Changed
+
+- Crate metadata now names the actual problem space — `description` mentions
+  USDC, Circle, CCTP v1/v2, and bridging; `keywords` are the specific terms
+  agents and users search for (`cctp`, `usdc`, `circle`, `bridge`, `alloy`)
+  rather than generic `defi`/`web3` filler. Improves crates.io discoverability.
+- Module-level rustdoc on `lib.rs` now opens with a `Choosing an API` table
+  that points readers to `CctpV2Bridge` (recommended), `Cctp` (legacy v1-only
+  chains), `mint_if_needed` / `wait_for_receive`, and the v2 message
+  inspection types. The V2 Quick Start now appears before the V1 Quick Start.
+- `AGENTS.md` is the canonical agent-facing guide; `CLAUDE.md` points to it
+  to prevent drift. Adds a v1-vs-v2 decision matrix, a footguns section
+  (zeroed v2 nonces, permissionless relayer races, bytes32 recipient padding,
+  mainnet/testnet Iris hosts), and a public-API map keyed to source.
+
 ## [3.1.1] - 2026-05-05
 
 ### Changed

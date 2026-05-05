@@ -129,8 +129,6 @@ impl FinalityThreshold {
 }
 
 impl Default for FinalityThreshold {
-    /// Returns Standard as the default threshold
-    ///
     /// Standard transfers have no fees and are the safest option.
     fn default() -> Self {
         Self::Standard

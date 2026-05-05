@@ -8,36 +8,22 @@
 //! This library provides a safe, ergonomic interface for bridging USDC across
 //! multiple blockchain networks using Circle's CCTP infrastructure.
 //!
-//! ## Quick Start (V1)
+//! ## Choosing an API
 //!
-//! ```rust,no_run
-//! use cctp_rs::{Cctp, CctpError, PollingConfig};
-//! use alloy_chains::NamedChain;
-//! use alloy_primitives::FixedBytes;
+//! | Task                                                | Type                                |
+//! |-----------------------------------------------------|-------------------------------------|
+//! | Bridge USDC (recommended)                           | [`CctpV2Bridge`]                    |
+//! | Bridge USDC on a v1-only legacy chain               | [`Cctp`]                            |
+//! | Self-relay safely against permissionless relayers   | [`CctpV2Bridge::mint_if_needed`]    |
+//! | Wait for any relayer (cheapest happy path)          | [`CctpV2Bridge::wait_for_receive`]  |
+//! | Inspect a v2 message as serializable JSON           | [`ParsedV2MessageSummary`]          |
+//! | Look up chain config without a provider             | [`CctpV1`] / [`CctpV2`] traits      |
+//! | Drive contracts directly                            | [`TokenMessengerV2Contract`] etc.   |
 //!
-//! # async fn example() -> Result<(), CctpError> {
-//! # use alloy_provider::ProviderBuilder;
-//! // Set up providers and create bridge
-//! let eth_provider = ProviderBuilder::new().connect("http://localhost:8545").await?;
-//! let arb_provider = ProviderBuilder::new().connect("http://localhost:8546").await?;
+//! For longer-form guidance and the full list of footguns see `AGENTS.md` in
+//! the repository.
 //!
-//! let bridge = Cctp::builder()
-//!     .source_chain(NamedChain::Mainnet)
-//!     .destination_chain(NamedChain::Arbitrum)
-//!     .source_provider(eth_provider)
-//!     .destination_provider(arb_provider)
-//!     .recipient("0x742d35Cc6634C0532925a3b844Bc9e7595f8fA0d".parse()?)
-//!     .build();
-//!
-//! // Get message from burn transaction, then fetch attestation
-//! let burn_tx_hash = FixedBytes::from([0u8; 32]);
-//! let (message, message_hash) = bridge.get_message_sent_event(burn_tx_hash).await?;
-//! let attestation = bridge.get_attestation(message_hash, PollingConfig::default()).await?;
-//! # Ok(())
-//! # }
-//! ```
-//!
-//! ## Quick Start (V2)
+//! ## Quick Start (V2, recommended)
 //!
 //! ```rust,no_run
 //! use cctp_rs::{CctpV2Bridge, CctpError, PollingConfig};
@@ -65,6 +51,35 @@
 //!     burn_tx_hash,
 //!     PollingConfig::fast_transfer(),  // Optimized for fast transfers
 //! ).await?;
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! ## Quick Start (V1, legacy v1-only chains)
+//!
+//! ```rust,no_run
+//! use cctp_rs::{Cctp, CctpError, PollingConfig};
+//! use alloy_chains::NamedChain;
+//! use alloy_primitives::FixedBytes;
+//!
+//! # async fn example() -> Result<(), CctpError> {
+//! # use alloy_provider::ProviderBuilder;
+//! // Set up providers and create bridge
+//! let eth_provider = ProviderBuilder::new().connect("http://localhost:8545").await?;
+//! let arb_provider = ProviderBuilder::new().connect("http://localhost:8546").await?;
+//!
+//! let bridge = Cctp::builder()
+//!     .source_chain(NamedChain::Mainnet)
+//!     .destination_chain(NamedChain::Arbitrum)
+//!     .source_provider(eth_provider)
+//!     .destination_provider(arb_provider)
+//!     .recipient("0x742d35Cc6634C0532925a3b844Bc9e7595f8fA0d".parse()?)
+//!     .build();
+//!
+//! // Get message from burn transaction, then fetch attestation
+//! let burn_tx_hash = FixedBytes::from([0u8; 32]);
+//! let (message, message_hash) = bridge.get_message_sent_event(burn_tx_hash).await?;
+//! let attestation = bridge.get_attestation(message_hash, PollingConfig::default()).await?;
 //! # Ok(())
 //! # }
 //! ```

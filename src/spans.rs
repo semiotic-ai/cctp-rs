@@ -117,7 +117,8 @@ pub fn get_v2_attestation_with_retry(
 
 /// Create span for single attestation API request.
 ///
-/// Parent: `cctp_rs.get_attestation_with_retry`
+/// Parent: `cctp_rs.get_attestation_with_retry` (v1) or
+/// `cctp_rs.get_v2_attestation_with_retry` (v2)
 /// Children: HTTP client request spans (from reqwest instrumentation)
 pub fn get_attestation(url: &Url, attempt: u32) -> Span {
     tracing::debug_span!(

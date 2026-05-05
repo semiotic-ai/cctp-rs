@@ -5,6 +5,41 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.1.0] - 2026-05-05
+
+### Fixed
+
+- `record_error_with_context` now actually populates `error.context` on the
+  top-level bridge operation spans. The field was previously written to spans
+  that did not declare it, making the call a silent no-op.
+
+### Changed
+
+- **Observability schema (breaking for dashboards/alerts)**:
+  - Renamed the span field `error.source` to `error.context` on
+    `cctp_rs.get_message_sent_event`, `cctp_rs.get_attestation_with_retry`,
+    `cctp_rs.get_v2_attestation_with_retry`, and `cctp_rs.deposit_for_burn`.
+  - Renamed the v2 attestation polling span from
+    `cctp_rs.get_attestation_with_retry` to
+    `cctp_rs.get_v2_attestation_with_retry`, and dropped the
+    `version = "v2"` attribute (the span name now disambiguates).
+  - `record_error` now sets `error.type` to `std::any::type_name::<E>()`
+    rather than the first colon-delimited fragment of the Display string.
+- **Span helper API**:
+  - `spans::send_transaction` now takes `tx_hash: TxHash` instead of
+    `tx_hash: &str`, matching the typing used by the other span helpers.
+- Switched `message_hash` span attributes to `FixedBytes<32>`'s `Display`
+  impl (output now includes the `0x` prefix) and removed `#[inline]` from
+  the trivial span constructors.
+
+### Internal
+
+- Documented why v1 and v2 attestation-retry spans require separate
+  constructors (`tracing::info_span!` field identifiers must be literals).
+- Fixed a typo in the module-level rustdoc example (`poll intervali`).
+
+---
+
 ## [3.0.0] - 2026-04-17
 
 ### Changed

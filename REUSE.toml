@@ -20,6 +20,7 @@ SPDX-License-Identifier = "Apache-2.0"
 [[annotations]]
 path = [
     "README.md",
+    "AGENTS.md",
     "CHANGELOG.md",
     "CONTRIBUTING.md",
     "TESTNET_VALIDATION.md",

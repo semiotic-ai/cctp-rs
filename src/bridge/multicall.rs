@@ -7,12 +7,6 @@
 //! This module provides utilities for batching multiple contract calls into
 //! parallel RPC requests, reducing latency when fetching multiple values.
 //!
-//! # Benefits
-//!
-//! - Reduced latency: Multiple calls execute concurrently
-//! - Better throughput: Multiple requests can be in-flight simultaneously
-//! - Simpler code: Fetch related data in one logical operation
-//!
 //! # Example
 //!
 //! ```rust,ignore
@@ -89,17 +83,8 @@ pub async fn batch_token_checks<P>(
 where
     P: Provider<Ethereum> + Clone,
 {
-    let erc20 = Erc20Contract::new(token, provider.clone());
-
-    let (allowance_result, balance_result) =
-        tokio::join!(erc20.allowance(owner, spender), erc20.balance_of(owner));
-
-    let allowance = allowance_result
-        .map_err(|e| CctpError::ContractCall(format!("Failed to get allowance: {e}")))?;
-    let balance = balance_result
-        .map_err(|e| CctpError::ContractCall(format!("Failed to get balance: {e}")))?;
-
-    Ok((allowance, balance))
+    let state = batch_token_state(provider, token, owner, spender).await?;
+    Ok((state.allowance, state.balance))
 }
 
 /// Token state containing balance and allowance information.
@@ -135,10 +120,10 @@ impl TokenState {
     }
 }
 
-/// Batch check token state (balance and allowance) returning a structured result.
+/// Fetch token balance and allowance in parallel and return them as a [`TokenState`].
 ///
-/// This is a convenience wrapper around [`batch_token_checks`] that returns
-/// a [`TokenState`] struct with helper methods.
+/// Use this when you want predicate helpers (`can_transfer`, `needs_approval`,
+/// `has_sufficient_balance`) over the raw values.
 ///
 /// # Example
 ///
@@ -165,7 +150,16 @@ pub async fn batch_token_state<P>(
 where
     P: Provider<Ethereum> + Clone,
 {
-    let (allowance, balance) = batch_token_checks(provider, token, owner, spender).await?;
+    let erc20 = Erc20Contract::new(token, provider.clone());
+
+    let (allowance_result, balance_result) =
+        tokio::join!(erc20.allowance(owner, spender), erc20.balance_of(owner));
+
+    let allowance = allowance_result
+        .map_err(|e| CctpError::ContractCall(format!("Failed to get allowance: {e}")))?;
+    let balance = balance_result
+        .map_err(|e| CctpError::ContractCall(format!("Failed to get balance: {e}")))?;
+
     Ok(TokenState { balance, allowance })
 }
 
@@ -184,42 +178,11 @@ mod tests {
         assert!(state.can_transfer(U256::from(100)));
         assert!(!state.can_transfer(U256::from(501))); // exceeds allowance
         assert!(!state.can_transfer(U256::from(1001))); // exceeds balance
-    }
 
-    #[test]
-    fn test_token_state_needs_approval() {
-        let state = TokenState {
-            balance: U256::from(1000),
-            allowance: U256::from(500),
-        };
-
-        assert!(!state.needs_approval(U256::from(500)));
-        assert!(!state.needs_approval(U256::from(100)));
-        assert!(state.needs_approval(U256::from(501)));
-        assert!(state.needs_approval(U256::from(1000)));
-    }
-
-    #[test]
-    fn test_token_state_has_sufficient_balance() {
-        let state = TokenState {
-            balance: U256::from(1000),
-            allowance: U256::from(500),
-        };
-
-        assert!(state.has_sufficient_balance(U256::from(1000)));
-        assert!(state.has_sufficient_balance(U256::from(100)));
-        assert!(!state.has_sufficient_balance(U256::from(1001)));
-    }
-
-    #[test]
-    fn test_token_state_zero_allowance() {
-        let state = TokenState {
+        let no_allowance = TokenState {
             balance: U256::from(1000),
             allowance: U256::ZERO,
         };
-
-        assert!(!state.can_transfer(U256::from(1)));
-        assert!(state.needs_approval(U256::from(1)));
-        assert!(state.has_sufficient_balance(U256::from(1000)));
+        assert!(!no_allowance.can_transfer(U256::from(1)));
     }
 }

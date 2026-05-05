@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.2.0] - 2026-05-05
+
+### Added
+
+- `InvalidDomainId` and `InvalidFinalityThreshold` are now re-exported
+  from the crate root. Consumers of `DomainId::try_from(u32)` and
+  `FinalityThreshold::try_from(u32)` can name the error types directly
+  to match on them, propagate them, or wrap them in their own error
+  enums without piercing private module paths. Closes #175.
+
+### Changed
+
+- Accessor methods on `FinalityThreshold` and `DomainId` now carry
+  `#[must_use]`, so dropping a return value triggers a lint at the
+  call site instead of silently discarding the result.
+- `InvalidDomainId` and `InvalidFinalityThreshold` now derive
+  `thiserror::Error` to match `CctpError`'s style. The `Display`
+  message format and `std::error::Error` impl are unchanged — purely
+  an internal cleanup.
+- The `Default for FinalityThreshold` doc comment no longer restates
+  the impl signature; the rationale ("Standard transfers have no fees
+  and are the safest option") is now the lead. Closes #176.
+
 ## [3.1.2] - 2026-05-05
 
 ### Changed

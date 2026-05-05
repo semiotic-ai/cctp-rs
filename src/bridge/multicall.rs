@@ -42,7 +42,6 @@ use crate::error::{CctpError, Result};
 use alloy_network::Ethereum;
 use alloy_primitives::{Address, U256};
 use alloy_provider::Provider;
-use tracing::{debug, info};
 
 /// Batch check token allowance and balance in parallel RPC calls.
 ///
@@ -90,16 +89,8 @@ pub async fn batch_token_checks<P>(
 where
     P: Provider<Ethereum> + Clone,
 {
-    debug!(
-        token = %token,
-        owner = %owner,
-        spender = %spender,
-        event = "batch_token_checks_started"
-    );
-
     let erc20 = Erc20Contract::new(token, provider.clone());
 
-    // Execute both calls in parallel using tokio::join!
     let (allowance_result, balance_result) =
         tokio::join!(erc20.allowance(owner, spender), erc20.balance_of(owner));
 
@@ -107,15 +98,6 @@ where
         .map_err(|e| CctpError::ContractCall(format!("Failed to get allowance: {e}")))?;
     let balance = balance_result
         .map_err(|e| CctpError::ContractCall(format!("Failed to get balance: {e}")))?;
-
-    info!(
-        token = %token,
-        owner = %owner,
-        spender = %spender,
-        allowance = %allowance,
-        balance = %balance,
-        event = "batch_token_checks_completed"
-    );
 
     Ok((allowance, balance))
 }

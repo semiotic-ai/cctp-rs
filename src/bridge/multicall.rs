@@ -83,6 +83,8 @@ impl TokenState {
     }
 
     /// Check if the owner has sufficient balance.
+    ///
+    /// Returns `true` if balance >= amount.
     pub fn has_sufficient_balance(&self, amount: U256) -> bool {
         self.balance >= amount
     }

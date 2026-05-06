@@ -36,6 +36,12 @@ pub enum CctpError {
     #[error("Contract call failed: {0}")]
     ContractCall(String),
 
+    /// A typed contract-call error from `alloy_contract`. Preserves alloy's
+    /// structured introspection so callers can use [`alloy_contract::Error::as_revert_data`]
+    /// and [`alloy_contract::Error::as_decoded_interface_error`] for revert decoding.
+    #[error(transparent)]
+    Contract(#[from] alloy_contract::Error),
+
     #[error("Attestation failed: {reason}")]
     AttestationFailed { reason: String },
 
@@ -62,12 +68,6 @@ pub enum CctpError {
 
     #[error("Hex conversion error: {0}")]
     Hex(#[from] alloy_primitives::hex::FromHexError),
-}
-
-impl From<alloy_contract::Error> for CctpError {
-    fn from(e: alloy_contract::Error) -> Self {
-        CctpError::ContractCall(e.to_string())
-    }
 }
 
 impl CctpError {
@@ -103,6 +103,8 @@ impl CctpError {
             | CctpError::TransactionFailed { reason: msg } => {
                 Self::message_matches_already_relayed(msg)
             }
+
+            CctpError::Contract(e) => Self::message_matches_already_relayed(&e.to_string()),
 
             // Other error types cannot indicate already relayed
             _ => false,
@@ -252,5 +254,14 @@ mod tests {
         assert!(!CctpError::AttestationTimeout.is_already_relayed());
         assert!(!CctpError::InvalidConfig("test".to_string()).is_already_relayed());
         assert!(!CctpError::NotImplemented("test".to_string()).is_already_relayed());
+    }
+
+    #[test]
+    fn test_contract_variant_routes_through_is_already_relayed() {
+        // `ContractNotDeployed` renders without any "already relayed" pattern,
+        // so the typed variant should report false.
+        let err: CctpError = alloy_contract::Error::ContractNotDeployed.into();
+        assert!(matches!(err, CctpError::Contract(_)));
+        assert!(!err.is_already_relayed());
     }
 }

@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.3.0] - 2026-05-06
+
+### Deprecated
+
+- `batch_token_checks` is deprecated in favor of `batch_token_state`.
+  The new helper returns a typed `TokenState` with `can_transfer`,
+  `needs_approval`, and `has_sufficient_balance` predicates instead of
+  a positional `(allowance, balance)` tuple, eliminating the field-order
+  hazard between the two return shapes. `batch_token_checks` continues to
+  work and now delegates to `batch_token_state`; callers will see a
+  `#[deprecated]` warning steering them to the new API.
+
+### Changed
+
+- Module-level rustdoc and the `AGENTS.md` helper table now lead with
+  `batch_token_state` so new code reaches for the predicate API first.
+- `batch_token_state` holds the join logic and error mapping that
+  `batch_token_checks` previously duplicated; both now share a single
+  implementation.
+
 ## [3.2.0] - 2026-05-05
 
 ### Added

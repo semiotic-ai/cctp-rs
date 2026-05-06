@@ -104,10 +104,6 @@ impl CctpError {
                 Self::message_matches_already_relayed(msg)
             }
 
-            // Contract errors that wrap an RPC transport error carry the same
-            // structured payload as `Rpc` — route them through the same inspector
-            // so callers see consistent detection regardless of which path produced
-            // the error.
             CctpError::Contract(alloy_contract::Error::TransportError(rpc_error)) => {
                 Self::rpc_error_is_already_relayed(rpc_error)
             }
@@ -275,16 +271,26 @@ mod tests {
     #[test]
     fn test_contract_transport_error_inspects_rpc_payload() {
         use alloy_json_rpc::ErrorPayload;
-        use std::borrow::Cow;
 
-        let payload: ErrorPayload = ErrorPayload {
-            code: 3,
-            message: Cow::Borrowed("execution reverted: nonce already used"),
-            data: None,
-        };
-        let transport_err = alloy_transport::TransportError::ErrorResp(payload);
-        let err: CctpError = alloy_contract::Error::TransportError(transport_err).into();
+        fn contract_err_with_message(message: &'static str) -> CctpError {
+            let payload: ErrorPayload = ErrorPayload {
+                code: 3,
+                message: message.into(),
+                data: None,
+            };
+            alloy_contract::Error::TransportError(alloy_transport::TransportError::ErrorResp(
+                payload,
+            ))
+            .into()
+        }
 
-        assert!(err.is_already_relayed());
+        assert!(
+            contract_err_with_message("execution reverted: nonce already used")
+                .is_already_relayed()
+        );
+        assert!(
+            !contract_err_with_message("execution reverted: insufficient allowance")
+                .is_already_relayed()
+        );
     }
 }

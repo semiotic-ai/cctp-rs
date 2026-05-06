@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- **Breaking**: `CctpError::InvalidUrl` is now a tuple variant
+  carrying `url::ParseError` (`InvalidUrl(url::ParseError)`) instead
+  of the struct variant `InvalidUrl { reason: String }`. Callers
+  that destructured `{ reason }` must switch to tuple-pattern
+  matching. The new shape exposes the structured parse error
+  (kind, position) for diagnostics; the `Display` output retains
+  the `Invalid URL: <details>` shape, though the per-call-site
+  prefix (`Failed to construct attestation URL:` /
+  `Failed to construct v2 messages URL:`) is no longer included.
+
 ## [4.0.0] - 2026-05-06
 
 ### Added

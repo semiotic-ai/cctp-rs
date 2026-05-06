@@ -1201,13 +1201,9 @@ impl<P: Provider<Ethereum> + Clone> CctpV2<P> {
     /// See <https://developers.circle.com/cctp/transfer-usdc-on-testnet-from-ethereum-to-avalanche>
     pub fn create_url(&self, tx_hash: TxHash) -> Result<Url> {
         let source_domain = self.source_chain.cctp_v2_domain_id()?.as_u32();
-        self.api_url()
-            .join(&format!(
-                "{MESSAGES_PATH_V2}{source_domain}?transactionHash={tx_hash}"
-            ))
-            .map_err(|e| CctpError::InvalidUrl {
-                reason: format!("Failed to construct v2 messages URL: {e}"),
-            })
+        Ok(self.api_url().join(&format!(
+            "{MESSAGES_PATH_V2}{source_domain}?transactionHash={tx_hash}"
+        ))?)
     }
 
     /// Fetches the attestation response from the CCTP v2 API

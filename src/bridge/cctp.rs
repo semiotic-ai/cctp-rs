@@ -414,11 +414,9 @@ impl<P: Provider<Ethereum> + Clone> Cctp<P> {
     ///
     /// See <https://developers.circle.com/stablecoins/cctp-apis>
     pub fn create_url(&self, message_hash: FixedBytes<32>) -> Result<Url> {
-        self.api_url()
-            .join(&format!("{ATTESTATION_PATH_V1}{message_hash}"))
-            .map_err(|e| CctpError::InvalidUrl {
-                reason: format!("Failed to construct attestation URL: {e}"),
-            })
+        Ok(self
+            .api_url()
+            .join(&format!("{ATTESTATION_PATH_V1}{message_hash}"))?)
     }
 
     /// Fetches the attestation response from the CCTP API

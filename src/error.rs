@@ -52,8 +52,8 @@ pub enum CctpError {
     #[error("Timeout waiting for attestation")]
     AttestationTimeout,
 
-    #[error("Invalid URL: {reason}")]
-    InvalidUrl { reason: String },
+    #[error("Invalid URL: {0}")]
+    InvalidUrl(#[from] url::ParseError),
 
     #[error("RPC error: {0}")]
     Rpc(#[from] alloy_json_rpc::RpcError<alloy_transport::TransportErrorKind>),
@@ -249,6 +249,13 @@ mod tests {
         let err: CctpError = alloy_contract::Error::ContractNotDeployed.into();
         assert!(matches!(err, CctpError::Contract(_)));
         assert!(!err.is_already_relayed());
+    }
+
+    #[test]
+    fn test_invalid_url_preserves_typed_parse_error() {
+        let parse_err = url::Url::parse("not a url").unwrap_err();
+        let err: CctpError = parse_err.into();
+        assert!(matches!(err, CctpError::InvalidUrl(_)));
     }
 
     #[test]

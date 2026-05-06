@@ -24,18 +24,9 @@ use alloy_network::EthereumWallet;
 use alloy_primitives::{address, U256};
 use alloy_provider::{Provider, ProviderBuilder};
 use alloy_signer_local::PrivateKeySigner;
-use alloy_sol_types::sol;
-use cctp_rs::{CctpError, CctpV2, CctpV2Bridge};
+use cctp_rs::{CctpError, CctpV2, CctpV2Bridge, Erc20Contract};
 use dotenvy::dotenv;
 use tracing::{info_span, Instrument};
-
-// Minimal ERC20 interface for balance checking
-sol! {
-    #[sol(rpc)]
-    interface IERC20 {
-        function balanceOf(address account) external view returns (uint256);
-    }
-}
 
 /// Format ETH balance (18 decimals) for display
 fn format_eth_balance(balance: U256) -> String {
@@ -121,9 +112,10 @@ async fn main() -> Result<(), CctpError> {
             CctpError::Provider(format!("Failed to get Arbitrum Sepolia ETH balance: {e}"))
         })?;
 
-    let usdc_arb_contract = IERC20::new(usdc_arbitrum_sepolia, &arbitrum_sepolia_provider);
-    let arb_usdc_balance = async { usdc_arb_contract.balanceOf(wallet_address).call().await }
-        .instrument(info_span!("get_usdc_balance", chain = "Arbitrum Sepolia"))
+    let usdc_arb_contract = Erc20Contract::new(usdc_arbitrum_sepolia, &arbitrum_sepolia_provider);
+    let arb_usdc_balance = usdc_arb_contract
+        .balance_of(wallet_address)
+        .instrument(info_span!("get_usdc_balance", chain = %NamedChain::ArbitrumSepolia))
         .await?;
 
     println!(
@@ -144,9 +136,10 @@ async fn main() -> Result<(), CctpError> {
         .await
         .map_err(|e| CctpError::Provider(format!("Failed to get Base Sepolia ETH balance: {e}")))?;
 
-    let usdc_base_contract = IERC20::new(usdc_base_sepolia, &base_sepolia_provider);
-    let base_usdc_balance = async { usdc_base_contract.balanceOf(wallet_address).call().await }
-        .instrument(info_span!("get_usdc_balance", chain = "Base Sepolia"))
+    let usdc_base_contract = Erc20Contract::new(usdc_base_sepolia, &base_sepolia_provider);
+    let base_usdc_balance = usdc_base_contract
+        .balance_of(wallet_address)
+        .instrument(info_span!("get_usdc_balance", chain = %NamedChain::BaseSepolia))
         .await?;
 
     println!(

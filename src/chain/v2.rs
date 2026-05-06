@@ -124,10 +124,9 @@ impl CctpV2 for NamedChain {
                 | Self::PolygonAmoy
                 | Self::Unichain
                 // v2-only priority chains
+                // (BNB Smart Chain / domain 17 omitted: USYC-only on this domain)
                 | Self::Linea
                 | Self::Sonic
-                // TODO: Add BNB Smart Chain once available in alloy_chains
-                // | Self::Bsc
                 | Self::Sei
         )
     }
@@ -195,8 +194,6 @@ impl CctpV2 for NamedChain {
             // v2-only priority chains
             Self::Linea => DomainId::Linea,
             Self::Sonic => DomainId::Sonic,
-            // TODO: Add BNB Smart Chain once available in alloy_chains
-            // Self::Bsc => DomainId::BnbSmartChain,
             Self::Sei => DomainId::Sei,
             // This is unreachable due to supports_cctp_v2() check above
             _ => return Err(CctpError::UnsupportedChain(*self)),
@@ -266,24 +263,21 @@ impl CctpV2 for NamedChain {
 
 #[cfg(test)]
 mod tests {
+    use rstest::rstest;
+
     use super::*;
 
-    #[test]
-    fn test_v2_chain_support() {
-        // v1 chains should support v2
-        assert!(NamedChain::Mainnet.supports_cctp_v2());
-        assert!(NamedChain::Arbitrum.supports_cctp_v2());
-        assert!(NamedChain::Base.supports_cctp_v2());
-
-        // v2-only priority chains
-        assert!(NamedChain::Linea.supports_cctp_v2());
-        assert!(NamedChain::Sonic.supports_cctp_v2());
-        // TODO: Add BNB Smart Chain once available in alloy_chains
-        // assert!(NamedChain::Bsc.supports_cctp_v2());
-        assert!(NamedChain::Sei.supports_cctp_v2());
-
-        // Unsupported chain
-        assert!(!NamedChain::Moonbeam.supports_cctp_v2());
+    #[rstest]
+    #[case(NamedChain::Mainnet, true)]
+    #[case(NamedChain::Arbitrum, true)]
+    #[case(NamedChain::Base, true)]
+    #[case(NamedChain::Linea, true)]
+    #[case(NamedChain::Sonic, true)]
+    #[case(NamedChain::Sei, true)]
+    #[case(NamedChain::BinanceSmartChain, false)]
+    #[case(NamedChain::Moonbeam, false)]
+    fn test_v2_chain_support(#[case] chain: NamedChain, #[case] expected: bool) {
+        assert_eq!(chain.supports_cctp_v2(), expected);
     }
 
     #[test]
@@ -328,11 +322,6 @@ mod tests {
             NamedChain::Sonic.cctp_v2_domain_id().unwrap(),
             DomainId::Sonic
         );
-        // TODO: Add BNB Smart Chain once available in alloy_chains
-        // assert_eq!(
-        //     NamedChain::Bsc.cctp_v2_domain_id().unwrap(),
-        //     DomainId::BnbSmartChain
-        // );
         assert_eq!(NamedChain::Sei.cctp_v2_domain_id().unwrap(), DomainId::Sei);
     }
 

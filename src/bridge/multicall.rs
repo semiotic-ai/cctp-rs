@@ -41,7 +41,7 @@ use alloy_provider::Provider;
 /// Returns a tuple of `(allowance, balance)`. Prefer [`batch_token_state`] for
 /// new code — it returns a [`TokenState`] with named fields and predicate
 /// helpers (`can_transfer`, `needs_approval`, `has_sufficient_balance`).
-#[deprecated(since = "3.3.0", note = "use `batch_token_state` instead")]
+#[deprecated(since = "3.2.1", note = "use `batch_token_state` instead")]
 pub async fn batch_token_checks<P>(
     provider: &P,
     token: Address,
@@ -144,8 +144,8 @@ mod tests {
 
         assert!(state.can_transfer(U256::from(500)));
         assert!(state.can_transfer(U256::from(100)));
-        assert!(!state.can_transfer(U256::from(501))); // exceeds allowance
-        assert!(!state.can_transfer(U256::from(1001))); // exceeds balance
+        assert!(!state.can_transfer(U256::from(501)));
+        assert!(!state.can_transfer(U256::from(1001)));
 
         assert!(!state.needs_approval(U256::from(500)));
         assert!(state.needs_approval(U256::from(501)));

@@ -31,7 +31,7 @@
 //! requiring the Multicall3 contract to be deployed on all chains.
 
 use crate::contracts::erc20::Erc20Contract;
-use crate::error::{CctpError, Result};
+use crate::error::Result;
 use alloy_network::Ethereum;
 use alloy_primitives::{Address, U256};
 use alloy_provider::Provider;
@@ -122,15 +122,13 @@ where
 {
     let erc20 = Erc20Contract::new(token, provider.clone());
 
-    let (allowance_result, balance_result) =
+    let (allowance, balance) =
         tokio::join!(erc20.allowance(owner, spender), erc20.balance_of(owner));
 
-    let allowance = allowance_result
-        .map_err(|e| CctpError::ContractCall(format!("Failed to get allowance: {e}")))?;
-    let balance = balance_result
-        .map_err(|e| CctpError::ContractCall(format!("Failed to get balance: {e}")))?;
-
-    Ok(TokenState { balance, allowance })
+    Ok(TokenState {
+        balance: balance?,
+        allowance: allowance?,
+    })
 }
 
 #[cfg(test)]

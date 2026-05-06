@@ -729,10 +729,7 @@ impl<P: Provider<Ethereum> + Clone> CctpV2<P> {
             event = "checking_message_received_status"
         );
 
-        message_transmitter
-            .is_message_received(message_hash)
-            .await
-            .map_err(|e| CctpError::ContractCall(format!("Failed to check message status: {e}")))
+        Ok(message_transmitter.is_message_received(message_hash).await?)
     }
 
     /// Wait until a message has been received on the destination chain
@@ -928,10 +925,7 @@ impl<P: Provider<Ethereum> + Clone> CctpV2<P> {
         let spender = self.token_messenger_v2_contract()?;
         let erc20 = Erc20Contract::new(token_address, self.source_provider.clone());
 
-        erc20
-            .allowance(owner, spender)
-            .await
-            .map_err(|e| CctpError::ContractCall(format!("Failed to get allowance: {e}")))
+        Ok(erc20.allowance(owner, spender).await?)
     }
 
     /// Approve the `TokenMessenger` contract to spend tokens

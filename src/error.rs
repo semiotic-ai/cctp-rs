@@ -64,6 +64,12 @@ pub enum CctpError {
     Hex(#[from] alloy_primitives::hex::FromHexError),
 }
 
+impl From<alloy_contract::Error> for CctpError {
+    fn from(e: alloy_contract::Error) -> Self {
+        CctpError::ContractCall(e.to_string())
+    }
+}
+
 impl CctpError {
     /// Checks if this error indicates that a CCTP message was already relayed.
     ///

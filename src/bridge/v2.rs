@@ -729,7 +729,9 @@ impl<P: Provider<Ethereum> + Clone> CctpV2<P> {
             event = "checking_message_received_status"
         );
 
-        Ok(message_transmitter.is_message_received(message_hash).await?)
+        Ok(message_transmitter
+            .is_message_received(message_hash)
+            .await?)
     }
 
     /// Wait until a message has been received on the destination chain

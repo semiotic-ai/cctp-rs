@@ -15,5 +15,7 @@ mod v2;
 pub use bridge_trait::CctpBridge;
 pub use cctp::Cctp;
 pub use config::PollingConfig;
-pub use multicall::{batch_token_checks, batch_token_state, TokenState};
+#[allow(deprecated)]
+pub use multicall::batch_token_checks;
+pub use multicall::{batch_token_state, TokenState};
 pub use v2::{CctpV2, MintResult};

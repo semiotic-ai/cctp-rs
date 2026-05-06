@@ -10,17 +10,16 @@
 //! # Example
 //!
 //! ```rust,ignore
-//! use cctp_rs::batch_token_checks;
+//! use cctp_rs::batch_token_state;
 //!
-//! // Fetch balance and allowance in parallel
-//! let (allowance, balance) = batch_token_checks(
+//! let state = batch_token_state(
 //!     &provider,
 //!     usdc_address,
 //!     owner_address,
 //!     token_messenger_address,
 //! ).await?;
 //!
-//! if allowance < amount && balance >= amount {
+//! if state.needs_approval(amount) && state.has_sufficient_balance(amount) {
 //!     // Need to approve before burning
 //! }
 //! ```
@@ -39,41 +38,10 @@ use alloy_provider::Provider;
 
 /// Batch check token allowance and balance in parallel RPC calls.
 ///
-/// This is more efficient than making sequential `allowance()` and `balanceOf()`
-/// calls when you need both values, as the calls execute concurrently.
-///
-/// # Arguments
-///
-/// * `provider` - The Ethereum provider
-/// * `token` - The ERC20 token contract address (e.g., USDC)
-/// * `owner` - The address that owns the tokens
-/// * `spender` - The address to check allowance for (e.g., `TokenMessenger`)
-///
-/// # Returns
-///
-/// A tuple of `(allowance, balance)` where both are `U256`.
-///
-/// # Example
-///
-/// ```rust,ignore
-/// use cctp_rs::batch_token_checks;
-///
-/// let (allowance, balance) = batch_token_checks(
-///     &provider,
-///     usdc,
-///     sender,
-///     token_messenger,
-/// ).await?;
-///
-/// if balance >= amount {
-///     if allowance < amount {
-///         // Need approval first
-///         bridge.approve(usdc, sender, amount).await?;
-///     }
-///     // Can burn
-///     bridge.burn(amount, sender, usdc).await?;
-/// }
-/// ```
+/// Returns a tuple of `(allowance, balance)`. Prefer [`batch_token_state`] for
+/// new code — it returns a [`TokenState`] with named fields and predicate
+/// helpers (`can_transfer`, `needs_approval`, `has_sufficient_balance`).
+#[deprecated(since = "3.3.0", note = "use `batch_token_state` instead")]
 pub async fn batch_token_checks<P>(
     provider: &P,
     token: Address,
@@ -168,7 +136,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_token_state_can_transfer() {
+    fn test_token_state_predicates() {
         let state = TokenState {
             balance: U256::from(1000),
             allowance: U256::from(500),
@@ -179,10 +147,18 @@ mod tests {
         assert!(!state.can_transfer(U256::from(501))); // exceeds allowance
         assert!(!state.can_transfer(U256::from(1001))); // exceeds balance
 
+        assert!(!state.needs_approval(U256::from(500)));
+        assert!(state.needs_approval(U256::from(501)));
+
+        assert!(state.has_sufficient_balance(U256::from(1000)));
+        assert!(!state.has_sufficient_balance(U256::from(1001)));
+
         let no_allowance = TokenState {
             balance: U256::from(1000),
             allowance: U256::ZERO,
         };
         assert!(!no_allowance.can_transfer(U256::from(1)));
+        assert!(no_allowance.needs_approval(U256::from(1)));
+        assert!(no_allowance.has_sufficient_balance(U256::from(1000)));
     }
 }

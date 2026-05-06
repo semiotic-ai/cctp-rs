@@ -104,6 +104,14 @@ impl CctpError {
                 Self::message_matches_already_relayed(msg)
             }
 
+            // Contract errors that wrap an RPC transport error carry the same
+            // structured payload as `Rpc` — route them through the same inspector
+            // so callers see consistent detection regardless of which path produced
+            // the error.
+            CctpError::Contract(alloy_contract::Error::TransportError(rpc_error)) => {
+                Self::rpc_error_is_already_relayed(rpc_error)
+            }
+
             CctpError::Contract(e) => Self::message_matches_already_relayed(&e.to_string()),
 
             // Other error types cannot indicate already relayed
@@ -262,5 +270,21 @@ mod tests {
         let err: CctpError = alloy_contract::Error::ContractNotDeployed.into();
         assert!(matches!(err, CctpError::Contract(_)));
         assert!(!err.is_already_relayed());
+    }
+
+    #[test]
+    fn test_contract_transport_error_inspects_rpc_payload() {
+        use alloy_json_rpc::ErrorPayload;
+        use std::borrow::Cow;
+
+        let payload: ErrorPayload = ErrorPayload {
+            code: 3,
+            message: Cow::Borrowed("execution reverted: nonce already used"),
+            data: None,
+        };
+        let transport_err = alloy_transport::TransportError::ErrorResp(payload);
+        let err: CctpError = alloy_contract::Error::TransportError(transport_err).into();
+
+        assert!(err.is_already_relayed());
     }
 }

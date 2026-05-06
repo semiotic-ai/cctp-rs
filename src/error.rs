@@ -17,6 +17,7 @@ const ALREADY_RELAYED_PATTERNS: &[&str] = &[
 ];
 
 #[derive(Error, Debug)]
+#[non_exhaustive]
 pub enum CctpError {
     #[error("Unsupported chain: {0:?}")]
     UnsupportedChain(alloy_chains::NamedChain),
@@ -32,9 +33,6 @@ pub enum CctpError {
 
     #[error("Provider error: {0}")]
     Provider(String),
-
-    #[error("Contract call failed: {0}")]
-    ContractCall(String),
 
     /// A typed contract-call error from `alloy_contract`. Preserves alloy's
     /// structured introspection so callers can use [`alloy_contract::Error::as_revert_data`]
@@ -97,10 +95,8 @@ impl CctpError {
             // Check RPC errors for execution revert with known patterns
             CctpError::Rpc(rpc_error) => Self::rpc_error_is_already_relayed(rpc_error),
 
-            // Check string-based errors (Provider, ContractCall, TransactionFailed)
-            CctpError::Provider(msg)
-            | CctpError::ContractCall(msg)
-            | CctpError::TransactionFailed { reason: msg } => {
+            // Check string-based errors (Provider, TransactionFailed)
+            CctpError::Provider(msg) | CctpError::TransactionFailed { reason: msg } => {
                 Self::message_matches_already_relayed(msg)
             }
 
@@ -211,18 +207,6 @@ mod tests {
         assert!(err.is_already_relayed());
 
         let err = CctpError::Provider("some other error".to_string());
-        assert!(!err.is_already_relayed());
-    }
-
-    #[test]
-    fn test_is_already_relayed_contract_call_error() {
-        let err = CctpError::ContractCall("execution reverted: nonce used".to_string());
-        assert!(err.is_already_relayed());
-
-        let err = CctpError::ContractCall("already processed".to_string());
-        assert!(err.is_already_relayed());
-
-        let err = CctpError::ContractCall("insufficient funds".to_string());
         assert!(!err.is_already_relayed());
     }
 

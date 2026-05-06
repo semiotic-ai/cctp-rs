@@ -5,6 +5,68 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.0.0] - 2026-05-06
+
+### Added
+
+- New `CctpError::Contract(alloy_contract::Error)` variant preserves
+  alloy's structured contract-call error so callers can use
+  `alloy_contract::Error::as_revert_data` and
+  `as_decoded_interface_error` for revert decoding without re-parsing
+  Display strings. Bridge call sites that previously stringified
+  contract errors via `CctpError::ContractCall(format!(...))` now
+  propagate the typed variant through `?`, and `is_already_relayed`
+  inspects the underlying `TransportError` payload directly.
+
+### Changed
+
+- **Breaking**: `CctpError` is now `#[non_exhaustive]`. Downstream
+  matches must include a wildcard arm. In return, future variant
+  additions to `CctpError` will be non-breaking — `DomainId` already
+  follows this pattern.
+- **Breaking**: `CctpError::ContractCall(String)` has been removed.
+  All internal call sites now use the typed `Contract(alloy_contract::Error)`
+  variant; callers that constructed `ContractCall` for their own
+  contract-call paths should switch to `Contract` (which accepts an
+  `alloy_contract::Error` directly via `From`) or to `Provider(String)`
+  for non-alloy contract code.
+
+### Removed
+
+- **Breaking**: `batch_token_checks`, deprecated in 3.3.0, has been
+  removed. Use `batch_token_state` instead — it returns the same
+  values inside a `TokenState` with named fields and predicate
+  helpers (`can_transfer`, `needs_approval`, `has_sufficient_balance`).
+
+### Fixed
+
+- `CctpError::is_already_relayed` now detects already-relayed reverts
+  on contract calls consistently. The previous implementation only
+  matched the legacy `ContractCall(String)` variant, so a revert
+  surfaced through alloy's typed error path was missed and the bridge
+  helpers reported a hard failure instead of recognizing the message
+  as already delivered.
+
+### Internal
+
+- Dropped a dead type-erasing fallback in `is_already_relayed`: only
+  `alloy_contract::Error::TransportError` carries chain-level revert
+  data, so the other variants now answer `false` directly rather than
+  being stringified through pattern matching.
+- Refactored bridge and example error handling to use `?` with span-
+  based error context instead of repeated `map_err` + `format!`
+  bridges.
+- Examples now read USDC balances via the public `Erc20Contract` API
+  and parallelize the four pre-flight balance reads with
+  `tokio::join!`. ETH balance reads were aligned with the same
+  span-based `?` idiom.
+- Added regression tests covering `is_already_relayed` against both
+  the typed `ContractNotDeployed` variant (no revert payload) and an
+  RPC `ErrorPayload` carrying a revert message.
+- Documentation: clarified why BNB Smart Chain is excluded from CCTP
+  v2 (USYC-only on domain 17) and removed stale TODOs; spelled out
+  the threshold semantics of `TokenState::has_sufficient_balance`.
+
 ## [3.3.0] - 2026-05-06
 
 ### Deprecated

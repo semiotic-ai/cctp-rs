@@ -134,8 +134,6 @@ mod protocol;
 mod provider;
 
 // Public API - minimal surface for 1.0.0 stability
-#[allow(deprecated)]
-pub use bridge::batch_token_checks;
 pub use bridge::{
     batch_token_state, Cctp, CctpBridge, CctpV2 as CctpV2Bridge, MintResult, PollingConfig,
     TokenState,

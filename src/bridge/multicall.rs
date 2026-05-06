@@ -36,25 +36,6 @@ use alloy_network::Ethereum;
 use alloy_primitives::{Address, U256};
 use alloy_provider::Provider;
 
-/// Batch check token allowance and balance in parallel RPC calls.
-///
-/// Returns a tuple of `(allowance, balance)`. Prefer [`batch_token_state`] for
-/// new code — it returns a [`TokenState`] with named fields and predicate
-/// helpers (`can_transfer`, `needs_approval`, `has_sufficient_balance`).
-#[deprecated(since = "3.3.0", note = "use `batch_token_state` instead")]
-pub async fn batch_token_checks<P>(
-    provider: &P,
-    token: Address,
-    owner: Address,
-    spender: Address,
-) -> Result<(U256, U256)>
-where
-    P: Provider<Ethereum> + Clone,
-{
-    let state = batch_token_state(provider, token, owner, spender).await?;
-    Ok((state.allowance, state.balance))
-}
-
 /// Token state containing balance and allowance information.
 ///
 /// Returned by [`batch_token_state`] to provide a structured view

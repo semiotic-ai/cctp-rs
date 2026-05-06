@@ -50,7 +50,7 @@ All exports live in `src/lib.rs` under `pub use`. Quick map for navigation:
 | `CctpV2Bridge` (re-export of `CctpV2`) | V2 bridge with fast-transfer support | `src/bridge/v2.rs` |
 | `MintResult` | `Minted(TxHash)` / `AlreadyRelayed` | `src/bridge/v2.rs` |
 | `PollingConfig` | Attestation polling tuning | `src/bridge/config.rs` |
-| `TokenState`, `batch_token_state` | ERC-20 allowance/balance helpers (`batch_token_checks` is deprecated) | `src/bridge/` |
+| `TokenState`, `batch_token_state` | ERC-20 allowance/balance helpers | `src/bridge/` |
 | `CctpV1`, `CctpV2` traits | Chain config on `NamedChain` | `src/chain/config.rs`, `src/chain/v2.rs` |
 | `CCTP_V2_*_MAINNET/TESTNET` | Unified v2 contract addresses | `src/chain/addresses.rs` |
 | `TokenMessengerContract`, `MessageTransmitterContract` | V1 contract wrappers | `src/contracts/` |

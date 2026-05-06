@@ -104,14 +104,12 @@ impl CctpError {
                 Self::message_matches_already_relayed(msg)
             }
 
-            // Only `TransportError` carries chain-level revert data; per
-            // `alloy_contract::Error::as_revert_data`, every other variant is a
-            // local encoding/wiring failure that cannot indicate already relayed.
+            // Only `TransportError` carries chain-level revert data — see
+            // `alloy_contract::Error::as_revert_data`.
             CctpError::Contract(alloy_contract::Error::TransportError(rpc_error)) => {
                 Self::rpc_error_is_already_relayed(rpc_error)
             }
 
-            // Other error types cannot indicate already relayed
             _ => false,
         }
     }

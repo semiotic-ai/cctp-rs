@@ -27,6 +27,7 @@ use alloy_signer_local::PrivateKeySigner;
 use alloy_sol_types::sol;
 use cctp_rs::{CctpError, CctpV2, CctpV2Bridge};
 use dotenvy::dotenv;
+use tracing::{info_span, Instrument};
 
 // Minimal ERC20 interface for balance checking
 sol! {
@@ -121,13 +122,9 @@ async fn main() -> Result<(), CctpError> {
         })?;
 
     let usdc_arb_contract = IERC20::new(usdc_arbitrum_sepolia, &arbitrum_sepolia_provider);
-    let arb_usdc_balance = usdc_arb_contract
-        .balanceOf(wallet_address)
-        .call()
-        .await
-        .map_err(|e| {
-            CctpError::ContractCall(format!("Failed to get Arbitrum Sepolia USDC balance: {e}"))
-        })?;
+    let arb_usdc_balance = async { usdc_arb_contract.balanceOf(wallet_address).call().await }
+        .instrument(info_span!("get_usdc_balance", chain = "Arbitrum Sepolia"))
+        .await?;
 
     println!(
         "   ETH Balance: {} ETH",
@@ -148,13 +145,9 @@ async fn main() -> Result<(), CctpError> {
         .map_err(|e| CctpError::Provider(format!("Failed to get Base Sepolia ETH balance: {e}")))?;
 
     let usdc_base_contract = IERC20::new(usdc_base_sepolia, &base_sepolia_provider);
-    let base_usdc_balance = usdc_base_contract
-        .balanceOf(wallet_address)
-        .call()
-        .await
-        .map_err(|e| {
-            CctpError::ContractCall(format!("Failed to get Base Sepolia USDC balance: {e}"))
-        })?;
+    let base_usdc_balance = async { usdc_base_contract.balanceOf(wallet_address).call().await }
+        .instrument(info_span!("get_usdc_balance", chain = "Base Sepolia"))
+        .await?;
 
     println!(
         "   ETH Balance: {} ETH",

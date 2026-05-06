@@ -258,8 +258,7 @@ mod tests {
 
     #[test]
     fn test_contract_variant_routes_through_is_already_relayed() {
-        // `ContractNotDeployed` renders without any "already relayed" pattern,
-        // so the typed variant should report false.
+        // `ContractNotDeployed` renders without any "already relayed" pattern.
         let err: CctpError = alloy_contract::Error::ContractNotDeployed.into();
         assert!(matches!(err, CctpError::Contract(_)));
         assert!(!err.is_already_relayed());

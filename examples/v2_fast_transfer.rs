@@ -19,6 +19,8 @@
 //!
 //! Run with: `cargo run --example v2_fast_transfer`
 
+use std::future::IntoFuture;
+
 use alloy_chains::NamedChain;
 use alloy_network::EthereumWallet;
 use alloy_primitives::{address, U256};
@@ -107,10 +109,9 @@ async fn main() -> Result<(), CctpError> {
 
     let arb_eth_balance = arbitrum_sepolia_provider
         .get_balance(wallet_address)
-        .await
-        .map_err(|e| {
-            CctpError::Provider(format!("Failed to get Arbitrum Sepolia ETH balance: {e}"))
-        })?;
+        .into_future()
+        .instrument(info_span!("get_eth_balance", chain = %NamedChain::ArbitrumSepolia))
+        .await?;
 
     let usdc_arb_contract = Erc20Contract::new(usdc_arbitrum_sepolia, &arbitrum_sepolia_provider);
     let arb_usdc_balance = usdc_arb_contract
@@ -133,8 +134,9 @@ async fn main() -> Result<(), CctpError> {
 
     let base_eth_balance = base_sepolia_provider
         .get_balance(wallet_address)
-        .await
-        .map_err(|e| CctpError::Provider(format!("Failed to get Base Sepolia ETH balance: {e}")))?;
+        .into_future()
+        .instrument(info_span!("get_eth_balance", chain = %NamedChain::BaseSepolia))
+        .await?;
 
     let usdc_base_contract = Erc20Contract::new(usdc_base_sepolia, &base_sepolia_provider);
     let base_usdc_balance = usdc_base_contract

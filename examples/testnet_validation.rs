@@ -105,55 +105,63 @@ async fn main() -> Result<(), CctpError> {
     let usdc_arbitrum_sepolia = address!("75faf114eafb1BDbe2F0316DF893fd58CE46AA4d");
     let usdc_base_sepolia = address!("036CbD53842c5426634e7929541eC2318f3dCF7e");
 
-    // Check balances on Arbitrum Sepolia
-    println!("2️⃣  Checking Arbitrum Sepolia Balances...");
-
-    let arb_eth_balance = arbitrum_sepolia_provider
-        .get_balance(wallet_address)
-        .into_future()
-        .instrument(info_span!("get_eth_balance", chain = %NamedChain::ArbitrumSepolia))
-        .await?;
+    println!("2️⃣  Checking balances...");
 
     let usdc_arb_contract = Erc20Contract::new(usdc_arbitrum_sepolia, &arbitrum_sepolia_provider);
-    let arb_usdc_balance = usdc_arb_contract
-        .balance_of(wallet_address)
-        .instrument(info_span!("get_usdc_balance", chain = %NamedChain::ArbitrumSepolia))
-        .await?;
+    let usdc_base_contract = Erc20Contract::new(usdc_base_sepolia, &base_sepolia_provider);
 
+    let (arb_eth_balance, arb_usdc_balance, base_eth_balance, base_usdc_balance) = tokio::try_join!(
+        async {
+            arbitrum_sepolia_provider
+                .get_balance(wallet_address)
+                .into_future()
+                .instrument(info_span!("get_eth_balance", chain = %NamedChain::ArbitrumSepolia))
+                .await
+                .map_err(CctpError::from)
+        },
+        async {
+            usdc_arb_contract
+                .balance_of(wallet_address)
+                .instrument(info_span!("get_usdc_balance", chain = %NamedChain::ArbitrumSepolia))
+                .await
+                .map_err(CctpError::from)
+        },
+        async {
+            base_sepolia_provider
+                .get_balance(wallet_address)
+                .into_future()
+                .instrument(info_span!("get_eth_balance", chain = %NamedChain::BaseSepolia))
+                .await
+                .map_err(CctpError::from)
+        },
+        async {
+            usdc_base_contract
+                .balance_of(wallet_address)
+                .instrument(info_span!("get_usdc_balance", chain = %NamedChain::BaseSepolia))
+                .await
+                .map_err(CctpError::from)
+        },
+    )?;
+
+    println!("   Arbitrum Sepolia:");
     println!(
-        "   ETH Balance: {} ETH",
+        "     ETH Balance:  {} ETH",
         format_eth_balance(arb_eth_balance)
     );
     println!(
-        "   USDC Balance: {} USDC",
+        "     USDC Balance: {} USDC",
         format_usdc_balance(arb_usdc_balance)
     );
-    println!("   ✅ Arbitrum Sepolia balances retrieved\n");
-
-    // Check balances on Base Sepolia
-    println!("3️⃣  Checking Base Sepolia Balances...");
-
-    let base_eth_balance = base_sepolia_provider
-        .get_balance(wallet_address)
-        .into_future()
-        .instrument(info_span!("get_eth_balance", chain = %NamedChain::BaseSepolia))
-        .await?;
-
-    let usdc_base_contract = Erc20Contract::new(usdc_base_sepolia, &base_sepolia_provider);
-    let base_usdc_balance = usdc_base_contract
-        .balance_of(wallet_address)
-        .instrument(info_span!("get_usdc_balance", chain = %NamedChain::BaseSepolia))
-        .await?;
-
+    println!("   Base Sepolia:");
     println!(
-        "   ETH Balance: {} ETH",
+        "     ETH Balance:  {} ETH",
         format_eth_balance(base_eth_balance)
     );
     println!(
-        "   USDC Balance: {} USDC",
+        "     USDC Balance: {} USDC",
         format_usdc_balance(base_usdc_balance)
     );
-    println!("   ✅ Base Sepolia balances retrieved\n");
+    println!("   ✅ Balances retrieved\n");
 
     // Summary
     println!("📊 Balance Summary:");

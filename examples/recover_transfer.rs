@@ -112,10 +112,7 @@ async fn main() -> Result<(), CctpError> {
         wallet_address,
     );
 
-    let pending_tx = base_sepolia_provider
-        .send_transaction(tx_request)
-        .await
-        .map_err(|e| CctpError::Provider(format!("Failed to send mint transaction: {e}")))?;
+    let pending_tx = base_sepolia_provider.send_transaction(tx_request).await?;
 
     let mint_tx = *pending_tx.tx_hash();
     println!("   ✅ Mint TX: {mint_tx}");

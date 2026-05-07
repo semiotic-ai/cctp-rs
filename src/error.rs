@@ -31,9 +31,6 @@ pub enum CctpError {
     #[error("Network error: {0}")]
     Network(#[from] reqwest::Error),
 
-    #[error("Provider error: {0}")]
-    Provider(String),
-
     /// A typed contract-call error from `alloy_contract`. Preserves alloy's
     /// structured introspection so callers can use [`alloy_contract::Error::as_revert_data`]
     /// and [`alloy_contract::Error::as_decoded_interface_error`] for revert decoding.
@@ -95,9 +92,8 @@ impl CctpError {
             // Check RPC errors for execution revert with known patterns
             CctpError::Rpc(rpc_error) => Self::rpc_error_is_already_relayed(rpc_error),
 
-            // Check string-based errors (Provider, TransactionFailed)
-            CctpError::Provider(msg) | CctpError::TransactionFailed { reason: msg } => {
-                Self::message_matches_already_relayed(msg)
+            CctpError::TransactionFailed { reason } => {
+                Self::message_matches_already_relayed(reason)
             }
 
             // Only `TransportError` carries chain-level revert data — see
@@ -199,32 +195,20 @@ mod tests {
     }
 
     #[test]
-    fn test_is_already_relayed_provider_error() {
-        let err = CctpError::Provider("nonce already used".to_string());
-        assert!(err.is_already_relayed());
-
-        let err = CctpError::Provider("message already received".to_string());
-        assert!(err.is_already_relayed());
-
-        let err = CctpError::Provider("some other error".to_string());
-        assert!(!err.is_already_relayed());
-    }
-
-    #[test]
     fn test_is_already_relayed_transaction_failed() {
-        let err = CctpError::TransactionFailed {
-            reason: "Already Received".to_string(),
+        let check = |reason: &str| {
+            CctpError::TransactionFailed {
+                reason: reason.to_string(),
+            }
+            .is_already_relayed()
         };
-        assert!(err.is_already_relayed());
-    }
 
-    #[test]
-    fn test_is_already_relayed_case_insensitive() {
-        let err = CctpError::Provider("NONCE ALREADY USED".to_string());
-        assert!(err.is_already_relayed());
-
-        let err = CctpError::Provider("Nonce Already Used".to_string());
-        assert!(err.is_already_relayed());
+        assert!(check("nonce already used"));
+        assert!(check("message already received"));
+        assert!(check("Already Received"));
+        assert!(check("NONCE ALREADY USED"));
+        assert!(check("Nonce Already Used"));
+        assert!(!check("some other error"));
     }
 
     #[test]
@@ -232,7 +216,7 @@ mod tests {
         let err = CctpError::AttestationTimeout;
         assert!(err.is_timeout());
 
-        let err = CctpError::Provider("some error".to_string());
+        let err = CctpError::InvalidConfig("some error".to_string());
         assert!(!err.is_timeout());
     }
 

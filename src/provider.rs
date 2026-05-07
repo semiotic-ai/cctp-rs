@@ -78,7 +78,7 @@
 //! | Public endpoints | `ProviderConfig::rate_limited(5)` | 3 retries, 30s timeout, 5 RPS |
 //! | Default | `ProviderConfig::default()` | 3 retries, 30s timeout |
 
-use crate::error::{CctpError, Result};
+use crate::error::Result;
 use alloy_network::Ethereum;
 use alloy_primitives::U256;
 use alloy_provider::Provider;
@@ -125,10 +125,7 @@ pub async fn estimate_gas_with_buffer<P: Provider<Ethereum>>(
 ) -> Result<u64> {
     let buffer = buffer_percent.unwrap_or(DEFAULT_GAS_BUFFER_PERCENT);
 
-    let estimate = provider
-        .estimate_gas(tx.clone())
-        .await
-        .map_err(|e| CctpError::Provider(format!("Gas estimation failed: {e}")))?;
+    let estimate = provider.estimate_gas(tx.clone()).await?;
 
     // Apply buffer: estimate * (100 + buffer) / 100
     let with_buffer = estimate.saturating_mul(100 + buffer) / 100;

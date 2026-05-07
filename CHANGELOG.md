@@ -19,6 +19,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   prefix (`Failed to construct attestation URL:` /
   `Failed to construct v2 messages URL:`) is no longer included.
 
+### Removed
+
+- **Breaking**: `CctpError::Provider(String)` has been removed.
+  Callers that constructed `Provider(...)` directly should switch
+  to `Rpc(...)` (which accepts `RpcError<TransportErrorKind>` via
+  `From`) for transport errors, or `Contract(...)` for typed
+  contract-call errors.
+
 ## [4.0.0] - 2026-05-06
 
 ### Added

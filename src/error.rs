@@ -4,6 +4,7 @@
 
 use alloy_json_rpc::RpcError;
 use alloy_transport::TransportErrorKind;
+use std::fmt;
 use thiserror::Error;
 
 /// Known revert reason patterns that indicate a message was already processed.
@@ -15,6 +16,32 @@ const ALREADY_RELAYED_PATTERNS: &[&str] = &[
     "message already received",
     "nonce used",
 ];
+
+/// Categorical reasons an attestation poll can fail.
+///
+/// Carried by [`CctpError::AttestationFailed`] so callers can react
+/// to specific failure modes without substring-matching on a message.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum AttestationFailureKind {
+    /// The Iris API returned `AttestationStatus::Failed`.
+    ApiReportedFailed,
+    /// Status was `Complete` but the `attestation` field was null.
+    AttestationMissing,
+    /// Status was `Complete` but the `message` field was null (v2 only).
+    MessageMissing,
+}
+
+impl fmt::Display for AttestationFailureKind {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let msg = match self {
+            Self::ApiReportedFailed => "Iris API reported failed status",
+            Self::AttestationMissing => "attestation field missing in complete response",
+            Self::MessageMissing => "message field missing in complete response",
+        };
+        f.write_str(msg)
+    }
+}
 
 #[derive(Error, Debug)]
 #[non_exhaustive]
@@ -37,8 +64,8 @@ pub enum CctpError {
     #[error(transparent)]
     Contract(#[from] alloy_contract::Error),
 
-    #[error("Attestation failed: {reason}")]
-    AttestationFailed { reason: String },
+    #[error("Attestation failed: {0}")]
+    AttestationFailed(AttestationFailureKind),
 
     #[error("Transaction failed: {reason}")]
     TransactionFailed { reason: String },
@@ -233,6 +260,24 @@ mod tests {
         let err: CctpError = alloy_contract::Error::ContractNotDeployed.into();
         assert!(matches!(err, CctpError::Contract(_)));
         assert!(!err.is_already_relayed());
+    }
+
+    #[test]
+    fn test_attestation_failure_kind_renders_prose() {
+        let render = |kind: AttestationFailureKind| CctpError::AttestationFailed(kind).to_string();
+
+        assert_eq!(
+            render(AttestationFailureKind::ApiReportedFailed),
+            "Attestation failed: Iris API reported failed status",
+        );
+        assert_eq!(
+            render(AttestationFailureKind::AttestationMissing),
+            "Attestation failed: attestation field missing in complete response",
+        );
+        assert_eq!(
+            render(AttestationFailureKind::MessageMissing),
+            "Attestation failed: message field missing in complete response",
+        );
     }
 
     #[test]

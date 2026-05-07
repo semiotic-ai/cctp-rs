@@ -7,7 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- New `AttestationFailureKind` enum (`#[non_exhaustive]`) with three
+  variants — `ApiReportedFailed`, `AttestationMissing`,
+  `MessageMissing` — exposed at the crate root. Lets callers
+  `match` on a specific attestation-poll failure mode instead of
+  substring-matching on a free-form `reason` string.
+
 ### Changed
+
+- **Breaking**: `CctpError::AttestationFailed` is now a tuple variant
+  carrying `AttestationFailureKind`
+  (`AttestationFailed(AttestationFailureKind)`) instead of the
+  struct variant `AttestationFailed { reason: String }`. The five
+  internal construction sites in `bridge/cctp.rs` and
+  `bridge/v2.rs` collapse onto three named cases. The `Display`
+  output changes from the prior free-text `reason` to a fixed
+  prose phrase per kind (`Attestation failed: Iris API reported
+  failed status`, `... attestation field missing in complete
+  response`, or `... message field missing in complete response`);
+  telemetry that scraped the prior strings should switch to
+  matching on the typed kind.
 
 - **Breaking**: `CctpError::InvalidUrl` is now a tuple variant
   carrying `url::ParseError` (`InvalidUrl(url::ParseError)`) instead

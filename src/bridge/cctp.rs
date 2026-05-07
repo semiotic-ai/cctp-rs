@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::error::{CctpError, Result};
+use crate::error::{AttestationFailureKind, CctpError, Result};
 use crate::{spans, DomainId};
 use crate::{AttestationBytes, AttestationResponse, AttestationStatus, CctpV1};
 use alloy_chains::NamedChain;
@@ -335,9 +335,7 @@ impl<P: Provider<Ethereum> + Clone> Cctp<P> {
                                 Some("This indicates an unexpected API response format"),
                             );
                             error!(event = "attestation_data_missing");
-                            CctpError::AttestationFailed {
-                                reason: "Attestation missing".to_string(),
-                            }
+                            CctpError::AttestationFailed(AttestationFailureKind::AttestationMissing)
                         })?
                         .to_vec();
 
@@ -356,9 +354,9 @@ impl<P: Provider<Ethereum> + Clone> Cctp<P> {
                         ),
                     );
                     error!(event = "attestation_failed");
-                    return Err(CctpError::AttestationFailed {
-                        reason: "Attestation failed".to_string(),
-                    });
+                    return Err(CctpError::AttestationFailed(
+                        AttestationFailureKind::ApiReportedFailed,
+                    ));
                 }
                 AttestationStatus::Pending | AttestationStatus::PendingConfirmations => {
                     debug!(event = "attestation_pending");

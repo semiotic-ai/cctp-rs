@@ -149,7 +149,7 @@ pub use contracts::{
     token_messenger::TokenMessengerContract,
     v2::{MessageTransmitterV2Contract, TokenMessengerV2Contract},
 };
-pub use error::{CctpError, Result};
+pub use error::{AttestationFailureKind, CctpError, Result};
 pub use protocol::{
     AttestationBytes, AttestationResponse, AttestationStatus, BurnMessageV2, DomainId,
     FinalityThreshold, InvalidDomainId, InvalidFinalityThreshold, MessageHeader, ParseMessageError,

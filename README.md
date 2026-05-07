@@ -43,7 +43,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-cctp-rs = "4"
+cctp-rs = "5"
 ```
 
 ### Basic Example

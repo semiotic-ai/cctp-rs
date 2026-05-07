@@ -301,9 +301,9 @@ pub fn record_error<E: std::error::Error>(error: &E) {
 ///
 /// if let Err(e) = some_operation() {
 ///     spans::record_error_with_context(
-///         "TransactionFailed",
-///         &format!("Failed to submit transaction: {}", e),
-///         Some("Transaction may have been dropped from mempool"),
+///         "ReceiptRetrievalFailed",
+///         &format!("Failed to fetch transaction receipt: {}", e),
+///         Some("RPC node may not have indexed the transaction yet"),
 ///     );
 /// }
 /// # }

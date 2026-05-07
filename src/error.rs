@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use alloy_json_rpc::RpcError;
+use alloy_primitives::TxHash;
 use alloy_transport::TransportErrorKind;
 use std::fmt;
 use thiserror::Error;
@@ -67,8 +68,18 @@ pub enum CctpError {
     #[error("Attestation failed: {0}")]
     AttestationFailed(AttestationFailureKind),
 
-    #[error("Transaction failed: {reason}")]
-    TransactionFailed { reason: String },
+    /// The source-chain RPC returned no receipt for the given transaction
+    /// hash. The transaction may not have been mined yet, may have been
+    /// dropped, or the queried node may not have indexed it.
+    #[error("Transaction not found: {tx_hash}")]
+    TransactionNotFound { tx_hash: TxHash },
+
+    /// The transaction receipt was found but did not contain a `MessageSent`
+    /// log. This indicates the transaction did not emit the CCTP bridge
+    /// event — typically because the call hit the wrong contract or
+    /// reverted before reaching the burn step.
+    #[error("MessageSent event not found in transaction logs: {tx_hash}")]
+    MessageSentEventMissing { tx_hash: TxHash },
 
     #[error("Invalid configuration: {0}")]
     InvalidConfig(String),
@@ -99,8 +110,11 @@ impl CctpError {
     /// before your application. When this returns `true`, the transfer was successful
     /// (just not by us).
     ///
-    /// This method uses typed error inspection where possible and falls back to
-    /// pattern matching on error messages for robustness across different RPC providers.
+    /// Detects the explicit [`AlreadyRelayed`](Self::AlreadyRelayed) variant
+    /// directly; for [`Rpc`](Self::Rpc) and the transport-error subset of
+    /// [`Contract`](Self::Contract), inspects the RPC error payload's message
+    /// and data fields against known revert phrases for robustness across
+    /// different RPC providers.
     ///
     /// # Example
     ///
@@ -118,10 +132,6 @@ impl CctpError {
 
             // Check RPC errors for execution revert with known patterns
             CctpError::Rpc(rpc_error) => Self::rpc_error_is_already_relayed(rpc_error),
-
-            CctpError::TransactionFailed { reason } => {
-                Self::message_matches_already_relayed(reason)
-            }
 
             // Only `TransportError` carries chain-level revert data — see
             // `alloy_contract::Error::as_revert_data`.
@@ -213,6 +223,14 @@ pub type Result<T> = std::result::Result<T, CctpError>;
 mod tests {
     use super::*;
 
+    fn error_payload(message: &'static str) -> alloy_json_rpc::ErrorPayload {
+        alloy_json_rpc::ErrorPayload {
+            code: 3,
+            message: message.into(),
+            data: None,
+        }
+    }
+
     #[test]
     fn test_is_already_relayed_explicit_variant() {
         let err = CctpError::AlreadyRelayed {
@@ -222,12 +240,9 @@ mod tests {
     }
 
     #[test]
-    fn test_is_already_relayed_transaction_failed() {
-        let check = |reason: &str| {
-            CctpError::TransactionFailed {
-                reason: reason.to_string(),
-            }
-            .is_already_relayed()
+    fn test_is_already_relayed_rpc_payload() {
+        let check = |message: &'static str| {
+            CctpError::Rpc(RpcError::ErrorResp(error_payload(message))).is_already_relayed()
         };
 
         assert!(check("nonce already used"));
@@ -252,6 +267,14 @@ mod tests {
         assert!(!CctpError::AttestationTimeout.is_already_relayed());
         assert!(!CctpError::InvalidConfig("test".to_string()).is_already_relayed());
         assert!(!CctpError::NotImplemented("test".to_string()).is_already_relayed());
+        assert!(!CctpError::TransactionNotFound {
+            tx_hash: TxHash::ZERO,
+        }
+        .is_already_relayed());
+        assert!(!CctpError::MessageSentEventMissing {
+            tx_hash: TxHash::ZERO,
+        }
+        .is_already_relayed());
     }
 
     #[test]
@@ -289,19 +312,12 @@ mod tests {
 
     #[test]
     fn test_contract_transport_error_inspects_rpc_payload() {
-        use alloy_json_rpc::ErrorPayload;
-
-        fn contract_err_with_message(message: &'static str) -> CctpError {
-            let payload: ErrorPayload = ErrorPayload {
-                code: 3,
-                message: message.into(),
-                data: None,
-            };
+        let contract_err_with_message = |message: &'static str| -> CctpError {
             alloy_contract::Error::TransportError(alloy_transport::TransportError::ErrorResp(
-                payload,
+                error_payload(message),
             ))
             .into()
-        }
+        };
 
         assert!(
             contract_err_with_message("execution reverted: nonce already used")

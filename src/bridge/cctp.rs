@@ -124,17 +124,16 @@ impl<P: Provider<Ethereum> + Clone> Cctp<P> {
         let tx_receipt = match self.source_provider.get_transaction_receipt(tx_hash).await {
             Ok(receipt) => receipt,
             Err(e) => {
-                let error_msg = format!("Failed to get transaction receipt: {e}");
                 spans::record_error_with_context(
                     "ReceiptRetrievalFailed",
-                    &error_msg,
+                    &format!("Failed to get transaction receipt: {e}"),
                     Some("RPC call to get_transaction_receipt failed"),
                 );
                 error!(
                     error = %e,
                     event = "transaction_receipt_retrieval_failed"
                 );
-                return Err(CctpError::TransactionFailed { reason: error_msg });
+                return Err(e.into());
             }
         };
 
@@ -164,9 +163,7 @@ impl<P: Provider<Ethereum> + Clone> Cctp<P> {
                         available_logs = tx_receipt.inner.logs().len(),
                         event = "message_sent_event_not_found"
                     );
-                    CctpError::TransactionFailed {
-                        reason: "MessageSent event not found".to_string(),
-                    }
+                    CctpError::MessageSentEventMissing { tx_hash }
                 })?;
 
             // Decode the log data using the generated event bindings
@@ -189,9 +186,7 @@ impl<P: Provider<Ethereum> + Clone> Cctp<P> {
                 Some("The transaction may not have been mined yet or the RPC node doesn't have it"),
             );
             error!(event = "transaction_not_found");
-            Err(CctpError::TransactionFailed {
-                reason: "Transaction not found".to_string(),
-            })
+            Err(CctpError::TransactionNotFound { tx_hash })
         }
     }
 

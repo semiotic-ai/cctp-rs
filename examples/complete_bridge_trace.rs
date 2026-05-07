@@ -101,8 +101,8 @@
 //! # Find all HTTP errors
 //! { span.error.type = "HttpRequestFailed" }
 //!
-//! # Find transaction failures
-//! { span.error.type = "TransactionFailed" }
+//! # Find missing transaction receipts
+//! { span.error.type = "TransactionNotFound" }
 //! ```
 
 use alloy_chains::NamedChain;

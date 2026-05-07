@@ -15,6 +15,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `match` on a specific attestation-poll failure mode instead of
   substring-matching on a free-form `reason` string.
 
+- New `CctpError::TransactionNotFound { tx_hash }` variant signals
+  that the source-chain RPC returned no receipt for the given
+  hash (likely not yet mined or not indexed by the queried node).
+  The hash is carried on the variant so callers can log or retry
+  without parsing it out of a message string.
+
+- New `CctpError::MessageSentEventMissing { tx_hash }` variant
+  signals that the receipt was found but did not contain the
+  CCTP `MessageSent` log — typically because the call hit the
+  wrong contract or reverted before reaching the burn step. Also
+  carries the `tx_hash`.
+
 ### Changed
 
 - **Breaking**: `CctpError::AttestationFailed` is now a tuple variant
@@ -47,6 +59,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   to `Rpc(...)` (which accepts `RpcError<TransportErrorKind>` via
   `From`) for transport errors, or `Contract(...)` for typed
   contract-call errors.
+
+- **Breaking**: `CctpError::TransactionFailed { reason: String }`
+  has been removed. Its three internal construction patterns now
+  flow through typed variants: RPC-fetch failures propagate
+  through `CctpError::Rpc` via the existing `#[from]` impl; the
+  "receipt missing" case routes to the new `TransactionNotFound
+  { tx_hash }`; the "MessageSent log absent" case routes to the
+  new `MessageSentEventMissing { tx_hash }`. Callers that
+  destructured `TransactionFailed { reason }` for substring
+  matching should switch to matching the typed variants directly.
 
 ## [4.0.0] - 2026-05-06
 

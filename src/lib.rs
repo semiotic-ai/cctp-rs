@@ -125,6 +125,22 @@
 //! - Contract wrappers for direct contract interaction:
 //!   - v1: [`TokenMessengerContract`], [`MessageTransmitterContract`]
 //!   - v2: [`TokenMessengerV2Contract`], [`MessageTransmitterV2Contract`]
+//! - `sol!`-generated modules for decoding raw event logs against the canonical ABI:
+//!   - v1: [`TokenMessenger`], [`MessageTransmitter`]
+//!   - v2: [`TokenMessengerV2`], [`MessageTransmitterV2`]
+//!
+//! For example, to decode a v2 `DepositForBurn` event log:
+//!
+//! ```rust,no_run
+//! use cctp_rs::TokenMessengerV2::DepositForBurn;
+//! use alloy_sol_types::SolEvent;
+//!
+//! # fn example(log: &alloy_primitives::Log) -> Result<(), alloy_sol_types::Error> {
+//! let _topic = DepositForBurn::SIGNATURE_HASH;
+//! let _decoded = DepositForBurn::decode_log(log)?;
+//! # Ok(())
+//! # }
+//! ```
 
 mod bridge;
 mod chain;
@@ -145,9 +161,12 @@ pub use chain::addresses::{
 pub use chain::{CctpV1, CctpV2};
 pub use contracts::{
     erc20::Erc20Contract,
-    message_transmitter::MessageTransmitterContract,
-    token_messenger::TokenMessengerContract,
-    v2::{MessageTransmitterV2Contract, TokenMessengerV2Contract},
+    message_transmitter::{MessageTransmitter, MessageTransmitterContract},
+    token_messenger::{TokenMessenger, TokenMessengerContract},
+    v2::{
+        MessageTransmitterV2, MessageTransmitterV2Contract, TokenMessengerV2,
+        TokenMessengerV2Contract,
+    },
 };
 pub use error::{AttestationFailureKind, CctpError, Result};
 pub use protocol::{

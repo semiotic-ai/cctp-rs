@@ -9,5 +9,5 @@
 mod message_transmitter_v2;
 mod token_messenger_v2;
 
-pub use message_transmitter_v2::MessageTransmitterV2Contract;
-pub use token_messenger_v2::TokenMessengerV2Contract;
+pub use message_transmitter_v2::{MessageTransmitterV2, MessageTransmitterV2Contract};
+pub use token_messenger_v2::{TokenMessengerV2, TokenMessengerV2Contract};

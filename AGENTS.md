@@ -55,6 +55,7 @@ All exports live in `src/lib.rs` under `pub use`. Quick map for navigation:
 | `CCTP_V2_*_MAINNET/TESTNET` | Unified v2 contract addresses | `src/chain/addresses.rs` |
 | `TokenMessengerContract`, `MessageTransmitterContract` | V1 contract wrappers | `src/contracts/` |
 | `TokenMessengerV2Contract`, `MessageTransmitterV2Contract` | V2 contract wrappers | `src/contracts/v2/` |
+| `TokenMessenger`, `MessageTransmitter`, `TokenMessengerV2`, `MessageTransmitterV2` | `sol!`-generated modules for decoding raw event logs (e.g. `DepositForBurn::SIGNATURE_HASH`, `DepositForBurn::decode_log(&log)`) | `src/contracts/`, `src/contracts/v2/` |
 | `Erc20Contract` | Minimal ERC-20 wrapper | `src/contracts/erc20.rs` |
 | `AttestationResponse`, `AttestationStatus`, `V2AttestationResponse` | Iris API response types | `src/protocol/attestation.rs` |
 | `ParsedV2Message`, `ParsedV2MessageSummary`, `BurnMessageV2`, `MessageHeader`, `V2Message` | Canonical v2 message parsing | `src/protocol/message.rs` |

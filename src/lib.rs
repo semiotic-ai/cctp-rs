@@ -129,7 +129,9 @@
 //!   - v1: [`TokenMessenger`], [`MessageTransmitter`]
 //!   - v2: [`TokenMessengerV2`], [`MessageTransmitterV2`]
 //!
-//! For example, to decode a v2 `DepositForBurn` event log:
+//! For example, to decode a v2 `DepositForBurn` event log (callers need direct
+//! dependencies on `alloy-sol-types` for the [`SolEvent`](alloy_sol_types::SolEvent)
+//! trait and `alloy-primitives` for [`Log`](alloy_primitives::Log)):
 //!
 //! ```rust,no_run
 //! use cctp_rs::TokenMessengerV2::DepositForBurn;

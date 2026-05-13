@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.1.0] - 2026-05-13
+
+### Added
+
+- Re-exported the `sol!`-generated contract modules
+  (`TokenMessenger`, `MessageTransmitter`, `TokenMessengerV2`,
+  `MessageTransmitterV2`) at the crate root alongside the existing
+  `*Contract` wrappers. Consumers can now decode CCTP event logs
+  against the canonical ABI — e.g.
+  `cctp_rs::TokenMessengerV2::DepositForBurn::SIGNATURE_HASH` and
+  `DepositForBurn::decode_log(&log)` — without redeclaring `sol!`
+  fragments locally. Unblocks indexer and on-chain reconciliation
+  use cases (#189).
+
 ## [5.0.0] - 2026-05-06
 
 ### Added

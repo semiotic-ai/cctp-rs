@@ -16,7 +16,7 @@ alloy-chains = "0.2"
 alloy-contract = { version = "2.0", default-features = false }
 alloy-json-rpc = { version = "2.0", default-features = false }
 alloy-network = { version = "2.0", default-features = false }
-alloy-primitives = { version = "1.5", default-features = false, features = [
+alloy-primitives = { version = "1.6", default-features = false, features = [
     "serde",
     "std",
     "rlp",

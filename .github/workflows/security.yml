@@ -22,7 +22,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Install cargo-audit
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@v2.85.4
         with:
           tool: cargo-audit
 
@@ -63,7 +63,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Install cargo-deny
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@v2.85.4
         with:
           tool: cargo-deny
 
